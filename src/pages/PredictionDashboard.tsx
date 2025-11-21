@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/ui/Button';
-import { AlertCircle, TrendingUp, Calendar, RefreshCw } from 'lucide-react';
+import { AlertCircle, TrendingUp, Calendar, RefreshCw, Lock, Crown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { Link } from 'react-router-dom';
+import { useSubscription } from '../hooks/useSubscription';
 
 interface Prediction {
   event_key: string;
@@ -19,6 +21,8 @@ interface Prediction {
   Streak: string;
   Age: string;
   'Serve%': string;
+  event_date: string;
+  event_time?: string;
 }
 
 interface ValueBet {
@@ -32,6 +36,7 @@ interface ValueBet {
 
 export function PredictionDashboard() {
   const { user, signOut } = useAuth();
+  const { isSubscribed, loading: subLoading } = useSubscription();
   const [selectedDate, setSelectedDate] = useState(
     new Date(Date.now() + 86400000).toISOString().split('T')[0]
   );
@@ -72,12 +77,34 @@ export function PredictionDashboard() {
 
       if (predError) throw predError;
 
-      // 3. Format Data
+      // 3. Format Data & Filter Past Matches
       const matchMap = new Map(matches.map(m => [m.event_key, m]));
+      const now = new Date();
       
       const formattedPredictions: Prediction[] = preds.map(p => {
         const m = matchMap.get(p.event_key);
         if (!m) return null;
+
+        // Time Filtering Logic
+        if (m.event_time) {
+            // event_time is usually "HH:MM"
+            // Construct full date object
+            try {
+                const matchDateTime = new Date(`${m.event_date}T${m.event_time}:00`);
+                if (!isNaN(matchDateTime.getTime())) {
+                    // If match time is valid and in the past, skip it
+                    // We add a 2-hour buffer (match duration) so users can see "Live" games
+                    // matchDateTime.setHours(matchDateTime.getHours() + 2); 
+                    
+                    // If we want strictly "Upcoming", skip if start time < now
+                    if (matchDateTime < now) {
+                        return null;
+                    }
+                }
+            } catch (e) {
+                // If parsing fails, show it anyway (safe fallback)
+            }
+        }
 
         const winnerIsP1 = p.predicted_winner === m.first_player_name;
         const prob = winnerIsP1 ? p.prob_p1 : p.prob_p2;
@@ -96,14 +123,30 @@ export function PredictionDashboard() {
           Fatigue: 'View details',
           Streak: 'View details',
           Age: 'View details',
-          'Serve%': 'View details'
+          'Serve%': 'View details',
+          event_date: m.event_date,
+          event_time: m.event_time
         };
       }).filter((p): p is Prediction => p !== null);
 
+      // Sort by Time if available
+      formattedPredictions.sort((a, b) => {
+          if (a.event_time && b.event_time) {
+              return a.event_time.localeCompare(b.event_time);
+          }
+          return 0;
+      });
+
       setPredictions(formattedPredictions);
       
-      // 4. Also fetch Value Bets if available
-      await fetchValueBets(eventKeys);
+      // 4. Fetch Value Bets
+      // Only for the filtered visible matches
+      const visibleEventKeys = formattedPredictions.map(p => p.event_key);
+      if (visibleEventKeys.length > 0) {
+          await fetchValueBets(visibleEventKeys);
+      } else {
+          setValueBets([]);
+      }
 
     } catch (err) {
       console.error('Error fetching predictions:', err);
@@ -114,7 +157,6 @@ export function PredictionDashboard() {
   };
 
   const fetchValueBets = async (eventKeys: string[]) => {
-    // Fetch pre-calculated value bets from Supabase
     const { data: bets, error: betError } = await supabase
         .from('value_bets')
         .select('*')
@@ -126,7 +168,6 @@ export function PredictionDashboard() {
     }
     
     if (bets) {
-        // Get match names map
         const { data: matches } = await supabase.from('matches').select('event_key, first_player_name, second_player_name').in('event_key', eventKeys);
         const nameMap = new Map(matches?.map(m => [m.event_key, `${m.first_player_name} vs ${m.second_player_name}`]) || []);
 
@@ -154,11 +195,22 @@ export function PredictionDashboard() {
       <nav className="bg-white shadow-sm border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <h1 className="text-2xl font-bold text-slate-900">
-              🎾 EyeTennis Predictor V3
-            </h1>
+            <div className="flex items-center">
+                <h1 className="text-2xl font-bold text-slate-900 mr-8">
+                🎾 EyeTennis Predictor V3
+                </h1>
+                <div className="hidden md:flex space-x-4">
+                    <Link to="/dashboard" className="text-slate-600 hover:text-slate-900 px-3 py-2 rounded-md text-sm font-medium">
+                        Dashboard
+                    </Link>
+                    <Link to="/subscription" className="text-slate-600 hover:text-slate-900 px-3 py-2 rounded-md text-sm font-medium flex items-center">
+                        <Crown className="w-4 h-4 mr-1 text-amber-500" />
+                        Subscription
+                    </Link>
+                </div>
+            </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-slate-600">{user?.email}</span>
+              <span className="text-sm text-slate-600 hidden sm:inline">{user?.email}</span>
               <Button variant="outline" onClick={signOut} size="sm">
                 Sign Out
               </Button>
@@ -169,7 +221,6 @@ export function PredictionDashboard() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 gap-6">
-          {/* Removed Sidebar Actions - Everything is automated now */}
           
           <main className="col-span-1">
             {error && (
@@ -203,6 +254,7 @@ export function PredictionDashboard() {
                   <table className="w-full">
                     <thead className="bg-slate-50 border-b border-slate-200">
                       <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Time</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Match</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Winner</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Prob</th>
@@ -213,6 +265,7 @@ export function PredictionDashboard() {
                     <tbody className="divide-y divide-slate-200">
                       {predictions.map((pred, idx) => (
                         <tr key={idx} className="hover:bg-slate-50">
+                          <td className="px-4 py-3 text-sm font-mono text-slate-500">{pred.event_time || '--:--'}</td>
                           <td className="px-4 py-3 text-sm text-slate-900">{pred.Match}</td>
                           <td className="px-4 py-3 text-sm font-medium text-slate-900">{pred['Predicted Winner']}</td>
                           <td className="px-4 py-3 text-sm text-emerald-600 font-semibold">
@@ -229,20 +282,36 @@ export function PredictionDashboard() {
 
               {predictions && predictions.length === 0 && (
                 <div className="text-center py-8 text-slate-500">
-                  No matches found for this date.
+                  No upcoming matches found for this date.
                 </div>
               )}
             </div>
 
             {predictions && predictions.length > 0 && (
-              <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+              <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 relative overflow-hidden">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
                   <TrendingUp className="w-5 h-5 mr-2 text-emerald-600" />
                   💰 Value Betting Analysis (Auto-Updated Hourly)
                 </h3>
 
+                {!isSubscribed && !subLoading && (
+                    <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+                        <Lock className="w-12 h-12 text-slate-400 mb-4" />
+                        <h3 className="text-xl font-bold text-slate-900 mb-2">Unlock Value Bets</h3>
+                        <p className="text-slate-600 mb-6 max-w-md">
+                            Upgrade to Premium to see AI-calculated value bets, real-time odds, and expected value (EV) analysis.
+                        </p>
+                        <Link to="/subscription">
+                            <Button size="lg" className="bg-amber-500 hover:bg-amber-600 text-white border-none">
+                                <Crown className="w-4 h-4 mr-2" />
+                                Upgrade to Premium
+                            </Button>
+                        </Link>
+                    </div>
+                )}
+
                 {valueBets && (
-                  <>
+                  <div className={!isSubscribed ? 'filter blur-sm select-none pointer-events-none' : ''}>
                     <div className="mb-6">
                       <label className="block text-sm font-medium text-slate-700 mb-2">
                         Minimum Expected Value (EV) %: {evThreshold.toFixed(1)}%
@@ -301,7 +370,7 @@ export function PredictionDashboard() {
                         No bets found with EV ≥ {evThreshold.toFixed(1)}%
                       </div>
                     )}
-                  </>
+                  </div>
                 )}
               </div>
             )}
