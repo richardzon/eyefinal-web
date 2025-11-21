@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/ui/Button';
-import { AlertCircle, TrendingUp, Calendar, RefreshCw, Lock, Crown, DollarSign, Activity, Trophy } from 'lucide-react';
+import { AlertCircle, TrendingUp, Calendar, RefreshCw, Lock, Crown, DollarSign, Activity, Trophy, LayoutGrid, List, Clock, Filter, ChevronDown, ChevronRight, ChevronUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
 import { useSubscription } from '../hooks/useSubscription';
@@ -38,6 +38,8 @@ interface ValueBet {
   ExpectedProfit: number;
 }
 
+type ViewMode = 'tournament' | 'confidence' | 'time';
+
 export function PredictionDashboard() {
   const { user, signOut } = useAuth();
   const { isSubscribed, loading: subLoading } = useSubscription();
@@ -50,6 +52,24 @@ export function PredictionDashboard() {
   const [sortConfig, setSortConfig] = useState<{ key: keyof ValueBet; direction: 'asc' | 'desc' } | null>({ key: 'EV', direction: 'desc' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Organization State
+  const [viewMode, setViewMode] = useState<ViewMode>('tournament');
+  const [highConfidenceOnly, setHighConfidenceOnly] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+
+  const toggleGroup = (key: string) => {
+      setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const toggleAll = (expand: boolean) => {
+      if (!predictions) return;
+      const groups = getGroupedPredictions();
+      const keys = Object.keys(groups);
+      const newState: Record<string, boolean> = {};
+      keys.forEach(k => newState[k] = expand);
+      setExpandedGroups(newState);
+  };
 
   const handleSort = (key: keyof ValueBet) => {
     let direction: 'asc' | 'desc' = 'desc';
@@ -123,16 +143,11 @@ export function PredictionDashboard() {
           H2H: 'View', Fatigue: 'View', Streak: 'View', Age: 'View', 'Serve%': 'View',
           event_date: m.event_date,
           event_time: m.event_time,
-          status: status // Add status
+          status: status
         };
       }).filter((p): p is Prediction => p !== null);
 
-      // Sort: Live -> Upcoming -> Finished
       formattedPredictions.sort((a, b) => {
-          const statusOrder = { 'Live': 0, 'Upcoming': 1, 'Finished': 2 };
-          if (statusOrder[a.status as keyof typeof statusOrder] !== statusOrder[b.status as keyof typeof statusOrder]) {
-              return statusOrder[a.status as keyof typeof statusOrder] - statusOrder[b.status as keyof typeof statusOrder];
-          }
           if (a.event_time && b.event_time) { return a.event_time.localeCompare(b.event_time); }
           return 0;
       });
@@ -186,9 +201,8 @@ export function PredictionDashboard() {
     });
   }
 
-  // --- RENDER HELPERS ---
   const getConfidenceColor = (prob: number) => {
-      if (prob > 0.8) return 'text-tennis'; // Neon Yellow
+      if (prob > 0.8) return 'text-tennis';
       if (prob > 0.6) return 'text-accent-green';
       return 'text-slate-400';
   };
@@ -201,10 +215,60 @@ export function PredictionDashboard() {
       return 'bg-slate-700 text-slate-300 border-slate-600';
   };
 
+  const getGroupedPredictions = () => {
+      if (!predictions) return {};
+      
+      let filtered = predictions;
+      if (highConfidenceOnly) {
+          filtered = filtered.filter(p => p.Probability > 0.60);
+      }
+
+      const groups: Record<string, Prediction[]> = {};
+
+      if (viewMode === 'tournament') {
+          filtered.forEach(p => {
+              const key = p.Tournament;
+              if (!groups[key]) groups[key] = [];
+              groups[key].push(p);
+          });
+      } else if (viewMode === 'confidence') {
+          filtered.forEach(p => {
+              let key = 'Low Confidence';
+              if (p.Probability > 0.8) key = '🔥 Very High (>80%)';
+              else if (p.Probability > 0.7) key = '✅ High (>70%)';
+              else if (p.Probability > 0.6) key = '⚠️ Medium (>60%)';
+              if (!groups[key]) groups[key] = [];
+              groups[key].push(p);
+          });
+      } else {
+          filtered.forEach(p => {
+              const key = p.event_time || 'Unknown Time';
+              if (!groups[key]) groups[key] = [];
+              groups[key].push(p);
+          });
+      }
+      
+      Object.keys(groups).forEach(k => {
+          groups[k].sort((a, b) => (a.event_time || '').localeCompare(b.event_time || ''));
+      });
+
+      return groups;
+  };
+
+  const groupedPreds = getGroupedPredictions();
+  const groupKeys = Object.keys(groupedPreds).sort();
+  
+  if (viewMode === 'confidence') {
+      const order = ['🔥 Very High (>80%)', '✅ High (>70%)', '⚠️ Medium (>60%)', 'Low Confidence'];
+      groupKeys.sort((a, b) => {
+          const ia = order.indexOf(a);
+          const ib = order.indexOf(b);
+          return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+      });
+  }
+
   return (
     <div className="min-h-screen bg-brand-dark font-sans text-slate-200 selection:bg-tennis selection:text-brand-dark">
-      
-      {/* --- NAVBAR --- */}
       <nav className="sticky top-0 z-50 glass-panel border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -235,20 +299,75 @@ export function PredictionDashboard() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
-        {/* --- CONTROLS --- */}
-        <div className="flex flex-col md:flex-row items-end md:items-center justify-between gap-4 glass-panel p-4 rounded-xl">
-            <div className="w-full md:w-auto">
-                <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
-                    <Calendar className="w-3 h-3 inline mr-1" /> Match Date
-                </label>
-                <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="bg-brand-dark border border-white/10 text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-tennis focus:border-transparent outline-none w-full md:w-48"
-                />
+        <div className="flex flex-col xl:flex-row items-end xl:items-center justify-between gap-4 glass-panel p-4 rounded-xl">
+            <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto">
+                <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
+                        <Calendar className="w-3 h-3 inline mr-1" /> Date
+                    </label>
+                    <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="bg-brand-dark border border-white/10 text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-tennis focus:border-transparent outline-none w-full"
+                    />
+                </div>
+                
+                <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
+                        <LayoutGrid className="w-3 h-3 inline mr-1" /> Group By
+                    </label>
+                    <div className="flex bg-brand-dark border border-white/10 rounded-lg p-1">
+                        <button 
+                            onClick={() => setViewMode('tournament')}
+                            className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${viewMode === 'tournament' ? 'bg-tennis text-brand-dark' : 'text-slate-400 hover:text-white'}`}
+                        >
+                            <Trophy className="w-4 h-4 inline mr-1" /> Tourney
+                        </button>
+                        <button 
+                            onClick={() => setViewMode('confidence')}
+                            className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${viewMode === 'confidence' ? 'bg-tennis text-brand-dark' : 'text-slate-400 hover:text-white'}`}
+                        >
+                            <TrendingUp className="w-4 h-4 inline mr-1" /> Prob%
+                        </button>
+                        <button 
+                            onClick={() => setViewMode('time')}
+                            className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${viewMode === 'time' ? 'bg-tennis text-brand-dark' : 'text-slate-400 hover:text-white'}`}
+                        >
+                            <Clock className="w-4 h-4 inline mr-1" /> Time
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex gap-2">
+                    <div>
+                        <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
+                            <Filter className="w-3 h-3 inline mr-1" /> Filters
+                        </label>
+                        <button
+                            onClick={() => setHighConfidenceOnly(!highConfidenceOnly)}
+                            className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${highConfidenceOnly ? 'bg-accent-green/20 border-accent-green text-accent-green' : 'bg-brand-dark border-white/10 text-slate-400 hover:border-white/30'}`}
+                        >
+                            {highConfidenceOnly ? '✅ High Conf.' : 'Show All'}
+                        </button>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
+                            View
+                        </label>
+                        <div className="flex gap-1">
+                            <button onClick={() => toggleAll(true)} className="px-3 py-2 rounded-lg border border-white/10 bg-brand-dark text-slate-400 hover:text-white text-xs">
+                                <ChevronDown className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => toggleAll(false)} className="px-3 py-2 rounded-lg border border-white/10 bg-brand-dark text-slate-400 hover:text-white text-xs">
+                                <ChevronRight className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <Button onClick={handlePredictMatches} disabled={loading} variant="tennis" className="w-full md:w-auto font-bold">
+
+            <Button onClick={handlePredictMatches} disabled={loading} variant="tennis" className="w-full xl:w-auto font-bold">
                 {loading ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
                 {loading ? 'Analysing...' : 'Refresh Data'}
             </Button>
@@ -261,79 +380,104 @@ export function PredictionDashboard() {
             </div>
         )}
 
-        {/* --- MATCH CARDS GRID --- */}
         <div>
             <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                 <Activity className="w-5 h-5 text-accent-blue" />
-                Upcoming Matches
+                Predictions
                 <span className="text-xs bg-brand-surface px-2 py-1 rounded-full text-slate-400 font-normal">
-                    {predictions?.length || 0} Found
+                    {predictions?.length || 0} Total
                 </span>
             </h2>
 
             {predictions && predictions.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {predictions.map((pred, idx) => {
-                        const [p1, p2] = pred.Match.split(' vs ');
+                <div className="space-y-4">
+                    {groupKeys.map((groupKey) => {
+                        const isExpanded = expandedGroups[groupKey] !== false; 
+                        
                         return (
-                            <div key={idx} className="glass-panel p-5 rounded-xl hover:border-tennis/50 transition-all group relative overflow-hidden">
-                                <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <Trophy className="w-24 h-24 text-white" />
+                        <div key={groupKey} className="border border-white/5 rounded-xl overflow-hidden bg-brand-card/30">
+                            <button 
+                                onClick={() => toggleGroup(groupKey)}
+                                className="w-full flex items-center justify-between p-4 bg-brand-card/50 hover:bg-brand-card transition-colors text-left"
+                            >
+                                <div className="flex items-center gap-3">
+                                    {isExpanded ? <ChevronDown className="w-5 h-5 text-tennis" /> : <ChevronRight className="w-5 h-5 text-slate-500" />}
+                                    <h3 className="text-white font-bold uppercase tracking-wider text-sm flex items-center">
+                                        {viewMode === 'tournament' && <Trophy className="w-4 h-4 mr-2 text-slate-400" />}
+                                        {viewMode === 'confidence' && <TrendingUp className="w-4 h-4 mr-2 text-slate-400" />}
+                                        {viewMode === 'time' && <Clock className="w-4 h-4 mr-2 text-slate-400" />}
+                                        {groupKey}
+                                    </h3>
+                                    <span className="text-xs bg-brand-dark px-2 py-0.5 rounded-full text-slate-400 border border-white/10">
+                                        {groupedPreds[groupKey].length}
+                                    </span>
                                 </div>
-                                
-                                <div className="flex justify-between items-start mb-4 relative z-10">
-                                    <div className={`text-xs font-bold px-2 py-1 rounded border ${getSurfaceColor(pred.Surface)}`}>
-                                        {pred.Surface}
-                                    </div>
-                                    <div className="text-xs font-mono text-slate-400 bg-brand-dark/50 px-2 py-1 rounded">
-                                        {pred.event_time || '--:--'}
-                                    </div>
+                                <div className="text-xs text-slate-500 font-mono hidden sm:block">
+                                    {isExpanded ? 'Click to collapse' : 'Click to expand'}
                                 </div>
+                            </button>
+                            
+                            {isExpanded && (
+                                <div className="p-4 border-t border-white/5">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {groupedPreds[groupKey].map((pred, idx) => {
+                                            const [p1, p2] = pred.Match.split(' vs ');
+                                            return (
+                                                <div key={idx} className="glass-panel p-4 rounded-lg hover:border-tennis/50 transition-all group relative overflow-hidden">
+                                                    <div className="flex justify-between items-center mb-3">
+                                                        <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${getSurfaceColor(pred.Surface)}`}>
+                                                            {pred.Surface}
+                                                        </div>
+                                                        <div className="text-[10px] font-mono text-slate-400">
+                                                            {pred.event_time || '--:--'}
+                                                        </div>
+                                                    </div>
 
-                                <div className="space-y-3 relative z-10">
-                                    {/* Player 1 */}
-                                    <div className="flex justify-between items-center">
-                                        <span className={`font-bold text-lg ${pred['Winner Is P1'] ? 'text-white' : 'text-slate-500'}`}>
-                                            {p1}
-                                        </span>
-                                        {pred['Winner Is P1'] && <Trophy className="w-4 h-4 text-tennis" />}
-                                    </div>
-                                    
-                                    {/* Probability Bar */}
-                                    <div className="h-1.5 bg-brand-dark rounded-full overflow-hidden flex">
-                                        <div 
-                                            className={`h-full transition-all duration-1000 ${pred['Winner Is P1'] ? 'bg-tennis' : 'bg-slate-700'}`} 
-                                            style={{ width: `${pred['Winner Is P1'] ? pred.Probability * 100 : (1-pred.Probability)*100}%` }}
-                                        />
-                                    </div>
+                                                    <div className="space-y-2">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className={`font-bold text-sm ${pred['Winner Is P1'] ? 'text-white' : 'text-slate-500'}`}>
+                                                                {p1}
+                                                            </span>
+                                                            {pred['Winner Is P1'] && <Trophy className="w-3 h-3 text-tennis" />}
+                                                        </div>
+                                                        
+                                                        <div className="h-1 bg-brand-dark rounded-full overflow-hidden flex">
+                                                            <div 
+                                                                className={`h-full transition-all duration-1000 ${pred['Winner Is P1'] ? 'bg-tennis' : 'bg-slate-700'}`} 
+                                                                style={{ width: `${pred['Winner Is P1'] ? pred.Probability * 100 : (1-pred.Probability)*100}%` }}
+                                                            />
+                                                        </div>
 
-                                    {/* Player 2 */}
-                                    <div className="flex justify-between items-center">
-                                        <span className={`font-bold text-lg ${!pred['Winner Is P1'] ? 'text-white' : 'text-slate-500'}`}>
-                                            {p2}
-                                        </span>
-                                        {!pred['Winner Is P1'] && <Trophy className="w-4 h-4 text-tennis" />}
+                                                        <div className="flex justify-between items-center">
+                                                            <span className={`font-bold text-sm ${!pred['Winner Is P1'] ? 'text-white' : 'text-slate-500'}`}>
+                                                                {p2}
+                                                            </span>
+                                                            {!pred['Winner Is P1'] && <Trophy className="w-3 h-3 text-tennis" />}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="mt-3 pt-3 border-t border-white/5 flex justify-between items-center">
+                                                        <div className={`font-mono font-bold text-sm ${getConfidenceColor(pred.Probability)}`}>
+                                                            {(pred.Probability * 100).toFixed(1)}%
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
-
-                                <div className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center relative z-10">
-                                    <div className="text-xs text-slate-500 uppercase tracking-wide">{pred.Tournament}</div>
-                                    <div className={`font-mono font-bold text-lg ${getConfidenceColor(pred.Probability)}`}>
-                                        {(pred.Probability * 100).toFixed(1)}%
-                                    </div>
-                                </div>
-                            </div>
+                            )}
+                        </div>
                         );
                     })}
                 </div>
             ) : (
-                !loading && <div className="text-center py-12 text-slate-500 bg-brand-card/30 rounded-xl border border-dashed border-white/10">No matches found.</div>
+                !loading && <div className="text-center py-12 text-slate-500 bg-brand-card/30 rounded-xl border border-dashed border-white/10">No matches found for selected filters.</div>
             )}
         </div>
 
-        {/* --- VALUE BETTING TERMINAL --- */}
         {predictions && predictions.length > 0 && (
-            <div className="glass-panel rounded-xl overflow-hidden border border-tennis/20 shadow-neon">
+            <div className="glass-panel rounded-xl overflow-hidden border border-tennis/20 shadow-neon mt-12">
                 <div className="p-6 border-b border-white/10 bg-brand-card/80 flex flex-col md:flex-row justify-between items-center gap-4">
                     <div>
                         <h3 className="text-xl font-bold text-white flex items-center gap-2">
@@ -343,7 +487,6 @@ export function PredictionDashboard() {
                         <p className="text-sm text-slate-400 mt-1">Real-time odds analysis & Kelly Criterion sizing</p>
                     </div>
                     
-                    {/* Slider */}
                     <div className="flex items-center gap-4 bg-brand-dark/50 p-2 rounded-lg border border-white/10">
                         <span className="text-xs font-bold text-tennis whitespace-nowrap">EV Threshold: {evThreshold}%</span>
                         <input
