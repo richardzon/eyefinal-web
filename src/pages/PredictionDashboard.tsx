@@ -32,6 +32,9 @@ interface ValueBet {
   'Model Prob': number;
   EV: number;
   Bookmaker: string;
+  StakeAmount: number;
+  StakePct: number;
+  ExpectedProfit: number;
 }
 
 export function PredictionDashboard() {
@@ -68,12 +71,12 @@ export function PredictionDashboard() {
 
       const eventKeys = matches.map(m => m.event_key);
 
-      // 2. Get Predictions
+      // 2. Get Predictions (V4 SOTA)
       const { data: preds, error: predError } = await supabase
         .from('predictions')
         .select('*')
         .in('event_key', eventKeys)
-        .eq('model_version', 'v3_ensemble_singles');
+        .eq('model_version', 'v4_sota_singles');
 
       if (predError) throw predError;
 
@@ -177,7 +180,10 @@ export function PredictionDashboard() {
             Odds: b.odds,
             'Model Prob': b.prob * 100,
             EV: b.ev * 100,
-            Bookmaker: b.bookmaker || 'Best Available'
+            Bookmaker: b.bookmaker || 'Best Available',
+            StakeAmount: b.stake_amount || 0,
+            StakePct: (b.kelly_fraction || 0) * 100, // Convert to %
+            ExpectedProfit: b.expected_profit || 0
         }));
         setValueBets(formattedBets);
     }
@@ -197,7 +203,7 @@ export function PredictionDashboard() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
                 <h1 className="text-2xl font-bold text-slate-900 mr-8">
-                🎾 EyeTennis Predictor V3
+                🎾 EyeTennis Predictor V4 SOTA
                 </h1>
                 <div className="hidden md:flex space-x-4">
                     <Link to="/dashboard" className="text-slate-600 hover:text-slate-900 px-3 py-2 rounded-md text-sm font-medium">
@@ -345,6 +351,8 @@ export function PredictionDashboard() {
                                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Odds</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Model Prob</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">EV</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Stake ($)</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Exp. Profit</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Bookmaker</th>
                               </tr>
                             </thead>
@@ -357,6 +365,12 @@ export function PredictionDashboard() {
                                   <td className="px-4 py-3 text-sm text-slate-600">{bet['Model Prob'].toFixed(1)}%</td>
                                   <td className="px-4 py-3 text-sm font-semibold text-emerald-600">
                                     {bet.EV.toFixed(1)}%
+                                  </td>
+                                  <td className="px-4 py-3 text-sm font-mono text-amber-600">
+                                    ${bet.StakeAmount.toFixed(2)} ({bet.StakePct.toFixed(1)}%)
+                                  </td>
+                                  <td className="px-4 py-3 text-sm font-mono text-emerald-600">
+                                    +${bet.ExpectedProfit.toFixed(2)}
                                   </td>
                                   <td className="px-4 py-3 text-sm text-slate-600">{bet.Bookmaker}</td>
                                 </tr>
