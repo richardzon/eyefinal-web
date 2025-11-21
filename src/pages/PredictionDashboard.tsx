@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/ui/Button';
-import { AlertCircle, TrendingUp, Calendar, RefreshCw, Lock, Crown } from 'lucide-react';
+import { AlertCircle, TrendingUp, Calendar, RefreshCw, Lock, Crown, DollarSign, Activity, Trophy } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
 import { useSubscription } from '../hooks/useSubscription';
@@ -65,7 +65,6 @@ export function PredictionDashboard() {
       const startDate = `${selectedDate}T00:00:00`;
       const endDate = `${selectedDate}T23:59:59`;
 
-      // 1. Get Matches
       const { data: matches, error: matchError } = await supabase
         .from('matches')
         .select('*')
@@ -80,7 +79,6 @@ export function PredictionDashboard() {
 
       const eventKeys = matches.map(m => m.event_key);
 
-      // 2. Get Predictions (V4 SOTA)
       const { data: preds, error: predError } = await supabase
         .from('predictions')
         .select('*')
@@ -89,7 +87,6 @@ export function PredictionDashboard() {
 
       if (predError) throw predError;
 
-      // 3. Format Data & Filter Past Matches
       const matchMap = new Map(matches.map(m => [m.event_key, m]));
       const now = new Date();
       
@@ -97,14 +94,11 @@ export function PredictionDashboard() {
         const m = matchMap.get(p.event_key);
         if (!m) return null;
 
-        // Time Filtering Logic
         if (m.event_time) {
             try {
                 const matchDateTime = new Date(`${m.event_date}T${m.event_time}:00`);
                 if (!isNaN(matchDateTime.getTime())) {
-                    if (matchDateTime < now) {
-                        return null;
-                    }
+                    if (matchDateTime < now) { return null; }
                 }
             } catch (e) {}
         }
@@ -122,27 +116,19 @@ export function PredictionDashboard() {
           Probability: prob,
           'Elo Diff': p.elo_diff_overall,
           'Surf Elo Diff': p.elo_diff_surface,
-          H2H: 'View details', 
-          Fatigue: 'View details',
-          Streak: 'View details',
-          Age: 'View details',
-          'Serve%': 'View details',
+          H2H: 'View', Fatigue: 'View', Streak: 'View', Age: 'View', 'Serve%': 'View',
           event_date: m.event_date,
           event_time: m.event_time
         };
       }).filter((p): p is Prediction => p !== null);
 
-      // Sort by Time if available
       formattedPredictions.sort((a, b) => {
-          if (a.event_time && b.event_time) {
-              return a.event_time.localeCompare(b.event_time);
-          }
+          if (a.event_time && b.event_time) { return a.event_time.localeCompare(b.event_time); }
           return 0;
       });
 
       setPredictions(formattedPredictions);
       
-      // 4. Fetch Value Bets
       const visibleEventKeys = formattedPredictions.map(p => p.event_key);
       if (visibleEventKeys.length > 0) {
           await fetchValueBets(visibleEventKeys);
@@ -151,7 +137,7 @@ export function PredictionDashboard() {
       }
 
     } catch (err) {
-      console.error('Error fetching predictions:', err);
+      console.error('Error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
@@ -159,16 +145,7 @@ export function PredictionDashboard() {
   };
 
   const fetchValueBets = async (eventKeys: string[]) => {
-    const { data: bets, error: betError } = await supabase
-        .from('value_bets')
-        .select('*')
-        .in('event_key', eventKeys);
-        
-    if (betError) {
-        console.error("Error fetching value bets", betError);
-        return;
-    }
-    
+    const { data: bets } = await supabase.from('value_bets').select('*').in('event_key', eventKeys);
     if (bets) {
         const { data: matches } = await supabase.from('matches').select('event_key, first_player_name, second_player_name').in('event_key', eventKeys);
         const nameMap = new Map(matches?.map(m => [m.event_key, `${m.first_player_name} vs ${m.second_player_name}`]) || []);
@@ -179,7 +156,7 @@ export function PredictionDashboard() {
             Odds: b.odds,
             'Model Prob': b.prob * 100,
             EV: b.ev * 100,
-            Bookmaker: b.bookmaker || 'Best Available',
+            Bookmaker: b.bookmaker || 'Best',
             StakeAmount: b.stake_amount || 0,
             StakePct: (b.kelly_fraction || 0) * 100,
             ExpectedProfit: b.expected_profit || 0
@@ -188,47 +165,57 @@ export function PredictionDashboard() {
     }
   };
 
-  // Auto-load on date change
-  useEffect(() => {
-      handlePredictMatches();
-  }, [selectedDate]);
+  useEffect(() => { handlePredictMatches(); }, [selectedDate]);
 
   let filteredBets = valueBets?.filter(bet => bet.EV >= evThreshold) || [];
-
   if (sortConfig !== null) {
     filteredBets.sort((a, b) => {
-      if (a[sortConfig.key] < b[sortConfig.key]) {
-        return sortConfig.direction === 'asc' ? -1 : 1;
-      }
-      if (a[sortConfig.key] > b[sortConfig.key]) {
-        return sortConfig.direction === 'asc' ? 1 : -1;
-      }
+      if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
   }
 
+  // --- RENDER HELPERS ---
+  const getConfidenceColor = (prob: number) => {
+      if (prob > 0.8) return 'text-tennis'; // Neon Yellow
+      if (prob > 0.6) return 'text-accent-green';
+      return 'text-slate-400';
+  };
+
+  const getSurfaceColor = (surface: string) => {
+      const s = surface.toLowerCase();
+      if (s.includes('hard')) return 'bg-accent-blue/20 text-accent-blue border-accent-blue/30';
+      if (s.includes('clay')) return 'bg-accent-orange/20 text-accent-orange border-accent-orange/30';
+      if (s.includes('grass')) return 'bg-accent-green/20 text-accent-green border-accent-green/30';
+      return 'bg-slate-700 text-slate-300 border-slate-600';
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      <nav className="bg-white shadow-sm border-b border-slate-200">
+    <div className="min-h-screen bg-brand-dark font-sans text-slate-200 selection:bg-tennis selection:text-brand-dark">
+      
+      {/* --- NAVBAR --- */}
+      <nav className="sticky top-0 z-50 glass-panel border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-                <h1 className="text-2xl font-bold text-slate-900 mr-8">
-                🎾 EyeTennis Predictor V4 SOTA
+                <h1 className="text-2xl font-bold tracking-tighter flex items-center gap-2">
+                    <span className="text-tennis">🎾</span>
+                    <span className="text-white">Eye</span>
+                    <span className="text-tennis">Tennis</span>
+                    <span className="text-xs bg-white/10 px-2 py-0.5 rounded text-slate-300 ml-2 font-mono">V4.SOTA</span>
                 </h1>
-                <div className="hidden md:flex space-x-4">
-                    <Link to="/dashboard" className="text-slate-600 hover:text-slate-900 px-3 py-2 rounded-md text-sm font-medium">
-                        Dashboard
-                    </Link>
-                    <Link to="/subscription" className="text-slate-600 hover:text-slate-900 px-3 py-2 rounded-md text-sm font-medium flex items-center">
-                        <Crown className="w-4 h-4 mr-1 text-amber-500" />
-                        Subscription
+                <div className="hidden md:flex ml-10 space-x-1">
+                    <Link to="/dashboard" className="text-white hover:bg-white/10 px-3 py-2 rounded-md text-sm font-medium transition-colors">Dashboard</Link>
+                    <Link to="/subscription" className="text-slate-400 hover:text-tennis px-3 py-2 rounded-md text-sm font-medium flex items-center transition-colors">
+                        <Crown className="w-4 h-4 mr-1.5 text-tennis" />
+                        Premium
                     </Link>
                 </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-slate-600 hidden sm:inline">{user?.email}</span>
-              <Button variant="outline" onClick={signOut} size="sm">
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-slate-400 hidden sm:inline font-mono">{user?.email}</span>
+              <Button variant="outline" onClick={signOut} size="sm" className="border-white/20 hover:bg-white/10 text-white">
                 Sign Out
               </Button>
             </div>
@@ -236,217 +223,190 @@ export function PredictionDashboard() {
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 gap-6">
-          
-          <main className="col-span-1">
-            {error && (
-              <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
-                <AlertCircle className="w-5 h-5 text-red-600 mr-3 mt-0.5" />
-                <div className="text-red-800">{error}</div>
-              </div>
-            )}
-
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-6">
-              <div className="flex items-end gap-4 mb-6">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    <Calendar className="w-4 h-4 inline mr-1" />
-                    Select Date for Prediction
-                  </label>
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  />
-                </div>
-                <Button onClick={handlePredictMatches} disabled={loading}>
-                  {loading ? 'Loading...' : '🔮 Refresh'}
-                </Button>
-              </div>
-
-              {predictions && predictions.length > 0 && (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-slate-50 border-b border-slate-200">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Time</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Match</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Winner</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Prob</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Surface</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Tournament</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                      {predictions.map((pred, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50">
-                          <td className="px-4 py-3 text-sm font-mono text-slate-500">{pred.event_time || '--:--'}</td>
-                          <td className="px-4 py-3 text-sm text-slate-900">{pred.Match}</td>
-                          <td className="px-4 py-3 text-sm font-medium text-slate-900">{pred['Predicted Winner']}</td>
-                          <td className="px-4 py-3 text-sm text-emerald-600 font-semibold">
-                            {(pred.Probability * 100).toFixed(1)}%
-                          </td>
-                          <td className="px-4 py-3 text-sm text-slate-600">{pred.Surface}</td>
-                          <td className="px-4 py-3 text-sm text-slate-600">{pred.Tournament}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {predictions && predictions.length === 0 && (
-                <div className="text-center py-8 text-slate-500">
-                  No upcoming matches found for this date.
-                </div>
-              )}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        
+        {/* --- CONTROLS --- */}
+        <div className="flex flex-col md:flex-row items-end md:items-center justify-between gap-4 glass-panel p-4 rounded-xl">
+            <div className="w-full md:w-auto">
+                <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
+                    <Calendar className="w-3 h-3 inline mr-1" /> Match Date
+                </label>
+                <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="bg-brand-dark border border-white/10 text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-tennis focus:border-transparent outline-none w-full md:w-48"
+                />
             </div>
-
-            {predictions && predictions.length > 0 && (
-              <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 relative overflow-hidden">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
-                  <TrendingUp className="w-5 h-5 mr-2 text-emerald-600" />
-                  💰 Value Betting Analysis (Auto-Updated Hourly)
-                </h3>
-
-                {!isSubscribed && !subLoading && (
-                    <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
-                        <Lock className="w-12 h-12 text-slate-400 mb-4" />
-                        <h3 className="text-xl font-bold text-slate-900 mb-2">Unlock Value Bets</h3>
-                        <p className="text-slate-600 mb-6 max-w-md">
-                            Upgrade to Premium to see AI-calculated value bets, real-time odds, and expected value (EV) analysis.
-                        </p>
-                        <Link to="/subscription">
-                            <Button size="lg" className="bg-amber-500 hover:bg-amber-600 text-white border-none">
-                                <Crown className="w-4 h-4 mr-2" />
-                                Upgrade to Premium
-                            </Button>
-                        </Link>
-                    </div>
-                )}
-
-                {valueBets && (
-                  <div className={!isSubscribed ? 'filter blur-sm select-none pointer-events-none' : ''}>
-                    <div className="mb-6">
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Minimum Expected Value (EV) %: {evThreshold.toFixed(1)}%
-                      </label>
-                      <input
-                        type="range"
-                        min="-10"
-                        max="50"
-                        step="0.5"
-                        value={evThreshold}
-                        onChange={(e) => setEvThreshold(parseFloat(e.target.value))}
-                        className="w-full"
-                      />
-                      <div className="flex justify-between text-xs text-slate-500 mt-1">
-                        <span>-10%</span>
-                        <span>50%</span>
-                      </div>
-                    </div>
-
-                    {filteredBets.length > 0 ? (
-                      <>
-                        <div className="mb-4 text-sm text-emerald-700 bg-emerald-50 px-4 py-2 rounded">
-                          Found {filteredBets.length} bets with EV ≥ {evThreshold.toFixed(1)}%
-                        </div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                              <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Match</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Bet On</th>
-                                <th 
-                                  className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase cursor-pointer hover:text-emerald-600"
-                                  onClick={() => handleSort('Odds')}
-                                >
-                                  Odds {sortConfig?.key === 'Odds' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                                </th>
-                                <th 
-                                  className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase cursor-pointer hover:text-emerald-600"
-                                  onClick={() => handleSort('Model Prob')}
-                                >
-                                  Model Prob {sortConfig?.key === 'Model Prob' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                                </th>
-                                <th 
-                                  className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase cursor-pointer hover:text-emerald-600"
-                                  onClick={() => handleSort('EV')}
-                                >
-                                  EV {sortConfig?.key === 'EV' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                                </th>
-                                <th 
-                                  className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase cursor-pointer hover:text-emerald-600"
-                                  onClick={() => handleSort('StakeAmount')}
-                                >
-                                  Stake ($) {sortConfig?.key === 'StakeAmount' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                                </th>
-                                <th 
-                                  className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase cursor-pointer hover:text-emerald-600"
-                                  onClick={() => handleSort('ExpectedProfit')}
-                                >
-                                  Exp. Profit {sortConfig?.key === 'ExpectedProfit' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Bookmaker</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-200">
-                              {filteredBets.map((bet, idx) => (
-                                <tr key={idx} className="hover:bg-slate-50">
-                                  <td className="px-4 py-3 text-sm text-slate-900">{bet.Match}</td>
-                                  <td className="px-4 py-3 text-sm font-medium text-slate-900">{bet['Bet On']}</td>
-                                  <td className="px-4 py-3 text-sm text-slate-600">{bet.Odds.toFixed(2)}</td>
-                                  <td className="px-4 py-3 text-sm text-slate-600">{bet['Model Prob'].toFixed(1)}%</td>
-                                  <td className="px-4 py-3 text-sm font-semibold text-emerald-600">
-                                    {bet.EV.toFixed(1)}%
-                                  </td>
-                                  <td className="px-4 py-3 text-sm font-mono text-amber-600">
-                                    ${bet.StakeAmount.toFixed(2)} ({bet.StakePct.toFixed(1)}%)
-                                  </td>
-                                  <td className="px-4 py-3 text-sm font-mono text-emerald-600">
-                                    +${bet.ExpectedProfit.toFixed(2)}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-slate-600">{bet.Bookmaker}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-center py-8 text-slate-500">
-                        No bets found with EV ≥ {evThreshold.toFixed(1)}%
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="mt-6 bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4">System Status</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl mb-2">✅</div>
-                  <div className="text-sm font-medium text-slate-900">Automation</div>
-                  <div className="text-xs text-slate-500">Active (Daily)</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl mb-2">✅</div>
-                  <div className="text-sm font-medium text-slate-900">Odds Sync</div>
-                  <div className="text-xs text-slate-500">Active (Hourly)</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl mb-2">✅</div>
-                  <div className="text-sm font-medium text-slate-900">Database</div>
-                  <div className="text-xs text-slate-500">Connected</div>
-                </div>
-              </div>
-            </div>
-          </main>
+            <Button onClick={handlePredictMatches} disabled={loading} className="bg-tennis text-brand-dark hover:bg-tennis-dim font-bold w-full md:w-auto">
+                {loading ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                {loading ? 'Analysing...' : 'Refresh Data'}
+            </Button>
         </div>
+
+        {error && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center text-red-400">
+            <AlertCircle className="w-5 h-5 mr-3" />
+            {error}
+            </div>
+        )}
+
+        {/* --- MATCH CARDS GRID --- */}
+        <div>
+            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-accent-blue" />
+                Upcoming Matches
+                <span className="text-xs bg-brand-surface px-2 py-1 rounded-full text-slate-400 font-normal">
+                    {predictions?.length || 0} Found
+                </span>
+            </h2>
+
+            {predictions && predictions.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {predictions.map((pred, idx) => {
+                        const [p1, p2] = pred.Match.split(' vs ');
+                        return (
+                            <div key={idx} className="glass-panel p-5 rounded-xl hover:border-tennis/50 transition-all group relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <Trophy className="w-24 h-24 text-white" />
+                                </div>
+                                
+                                <div className="flex justify-between items-start mb-4 relative z-10">
+                                    <div className={`text-xs font-bold px-2 py-1 rounded border ${getSurfaceColor(pred.Surface)}`}>
+                                        {pred.Surface}
+                                    </div>
+                                    <div className="text-xs font-mono text-slate-400 bg-brand-dark/50 px-2 py-1 rounded">
+                                        {pred.event_time || '--:--'}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3 relative z-10">
+                                    {/* Player 1 */}
+                                    <div className="flex justify-between items-center">
+                                        <span className={`font-bold text-lg ${pred['Winner Is P1'] ? 'text-white' : 'text-slate-500'}`}>
+                                            {p1}
+                                        </span>
+                                        {pred['Winner Is P1'] && <Trophy className="w-4 h-4 text-tennis" />}
+                                    </div>
+                                    
+                                    {/* Probability Bar */}
+                                    <div className="h-1.5 bg-brand-dark rounded-full overflow-hidden flex">
+                                        <div 
+                                            className={`h-full transition-all duration-1000 ${pred['Winner Is P1'] ? 'bg-tennis' : 'bg-slate-700'}`} 
+                                            style={{ width: `${pred['Winner Is P1'] ? pred.Probability * 100 : (1-pred.Probability)*100}%` }}
+                                        />
+                                    </div>
+
+                                    {/* Player 2 */}
+                                    <div className="flex justify-between items-center">
+                                        <span className={`font-bold text-lg ${!pred['Winner Is P1'] ? 'text-white' : 'text-slate-500'}`}>
+                                            {p2}
+                                        </span>
+                                        {!pred['Winner Is P1'] && <Trophy className="w-4 h-4 text-tennis" />}
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center relative z-10">
+                                    <div className="text-xs text-slate-500 uppercase tracking-wide">{pred.Tournament}</div>
+                                    <div className={`font-mono font-bold text-lg ${getConfidenceColor(pred.Probability)}`}>
+                                        {(pred.Probability * 100).toFixed(1)}%
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            ) : (
+                !loading && <div className="text-center py-12 text-slate-500 bg-brand-card/30 rounded-xl border border-dashed border-white/10">No matches found.</div>
+            )}
+        </div>
+
+        {/* --- VALUE BETTING TERMINAL --- */}
+        {predictions && predictions.length > 0 && (
+            <div className="glass-panel rounded-xl overflow-hidden border border-tennis/20 shadow-neon">
+                <div className="p-6 border-b border-white/10 bg-brand-card/80 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div>
+                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                            <TrendingUp className="w-5 h-5 text-tennis" />
+                            Value Betting Terminal
+                        </h3>
+                        <p className="text-sm text-slate-400 mt-1">Real-time odds analysis & Kelly Criterion sizing</p>
+                    </div>
+                    
+                    {/* Slider */}
+                    <div className="flex items-center gap-4 bg-brand-dark/50 p-2 rounded-lg border border-white/10">
+                        <span className="text-xs font-bold text-tennis whitespace-nowrap">EV Threshold: {evThreshold}%</span>
+                        <input
+                            type="range" min="-10" max="30" step="0.5"
+                            value={evThreshold}
+                            onChange={(e) => setEvThreshold(parseFloat(e.target.value))}
+                            className="w-32 md:w-48 accent-tennis h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                        />
+                    </div>
+                </div>
+
+                <div className="relative min-h-[200px]">
+                    {!isSubscribed && !subLoading && (
+                        <div className="absolute inset-0 z-20 bg-brand-dark/80 backdrop-blur-md flex flex-col items-center justify-center text-center p-8">
+                            <Lock className="w-16 h-16 text-tennis mb-4 opacity-50" />
+                            <h3 className="text-2xl font-bold text-white mb-2">Premium Feature</h3>
+                            <p className="text-slate-300 mb-6 max-w-md">Access high-EV bets, stake sizing, and bookmaker comparisons.</p>
+                            <Link to="/subscription">
+                                <Button className="bg-tennis text-brand-dark hover:bg-tennis-dim font-bold px-8 py-3 rounded-full text-lg">
+                                    Unlock Pro Access
+                                </Button>
+                            </Link>
+                        </div>
+                    )}
+
+                    <div className={`overflow-x-auto ${!isSubscribed ? 'filter blur-sm opacity-30' : ''}`}>
+                        <table className="w-full text-left">
+                            <thead className="bg-brand-dark/50 text-xs uppercase text-slate-400 font-medium">
+                                <tr>
+                                    <th className="px-6 py-4">Match / Player</th>
+                                    <th className="px-6 py-4 text-right cursor-pointer hover:text-tennis" onClick={() => handleSort('Odds')}>Odds</th>
+                                    <th className="px-6 py-4 text-right cursor-pointer hover:text-tennis" onClick={() => handleSort('Model Prob')}>Prob</th>
+                                    <th className="px-6 py-4 text-right cursor-pointer hover:text-tennis" onClick={() => handleSort('EV')}>EV</th>
+                                    <th className="px-6 py-4 text-right cursor-pointer hover:text-tennis" onClick={() => handleSort('StakeAmount')}>Kelly Stake</th>
+                                    <th className="px-6 py-4 text-right cursor-pointer hover:text-tennis" onClick={() => handleSort('ExpectedProfit')}>Exp. Profit</th>
+                                    <th className="px-6 py-4 text-right">Bookie</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                                {filteredBets.length > 0 ? filteredBets.map((bet, idx) => (
+                                    <tr key={idx} className="hover:bg-white/5 transition-colors group">
+                                        <td className="px-6 py-4">
+                                            <div className="text-sm font-medium text-white">{bet.Match}</div>
+                                            <div className="text-xs text-tennis mt-1 flex items-center gap-1">
+                                                <Activity className="w-3 h-3" /> Bet: {bet['Bet On']}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-mono text-slate-300">{bet.Odds.toFixed(2)}</td>
+                                        <td className="px-6 py-4 text-right font-mono text-slate-300">{bet['Model Prob'].toFixed(1)}%</td>
+                                        <td className={`px-6 py-4 text-right font-mono font-bold ${bet.EV >= 0 ? 'text-accent-green' : 'text-red-400'}`}>
+                                            {bet.EV > 0 ? '+' : ''}{bet.EV.toFixed(1)}%
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-mono text-white group-hover:text-tennis transition-colors">
+                                            ${bet.StakeAmount.toFixed(2)} <span className="text-slate-500 text-xs">({bet.StakePct.toFixed(1)}%)</span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-mono font-bold text-accent-green">
+                                            +${bet.ExpectedProfit.toFixed(2)}
+                                        </td>
+                                        <td className="px-6 py-4 text-right text-xs text-slate-400 uppercase">{bet.Bookmaker}</td>
+                                    </tr>
+                                )) : (
+                                    <tr>
+                                        <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                                            No value bets found matching criteria.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        )}
       </div>
     </div>
   );
