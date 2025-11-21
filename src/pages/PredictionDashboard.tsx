@@ -46,8 +46,17 @@ export function PredictionDashboard() {
   const [predictions, setPredictions] = useState<Prediction[] | null>(null);
   const [valueBets, setValueBets] = useState<ValueBet[] | null>(null);
   const [evThreshold, setEvThreshold] = useState(0);
+  const [sortConfig, setSortConfig] = useState<{ key: keyof ValueBet; direction: 'asc' | 'desc' } | null>({ key: 'EV', direction: 'desc' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleSort = (key: keyof ValueBet) => {
+    let direction: 'asc' | 'desc' = 'desc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'desc') {
+      direction = 'asc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   const handlePredictMatches = async () => {
     setLoading(true);
@@ -90,23 +99,14 @@ export function PredictionDashboard() {
 
         // Time Filtering Logic
         if (m.event_time) {
-            // event_time is usually "HH:MM"
-            // Construct full date object
             try {
                 const matchDateTime = new Date(`${m.event_date}T${m.event_time}:00`);
                 if (!isNaN(matchDateTime.getTime())) {
-                    // If match time is valid and in the past, skip it
-                    // We add a 2-hour buffer (match duration) so users can see "Live" games
-                    // matchDateTime.setHours(matchDateTime.getHours() + 2); 
-                    
-                    // If we want strictly "Upcoming", skip if start time < now
                     if (matchDateTime < now) {
                         return null;
                     }
                 }
-            } catch (e) {
-                // If parsing fails, show it anyway (safe fallback)
-            }
+            } catch (e) {}
         }
 
         const winnerIsP1 = p.predicted_winner === m.first_player_name;
@@ -143,7 +143,6 @@ export function PredictionDashboard() {
       setPredictions(formattedPredictions);
       
       // 4. Fetch Value Bets
-      // Only for the filtered visible matches
       const visibleEventKeys = formattedPredictions.map(p => p.event_key);
       if (visibleEventKeys.length > 0) {
           await fetchValueBets(visibleEventKeys);
@@ -182,7 +181,7 @@ export function PredictionDashboard() {
             EV: b.ev * 100,
             Bookmaker: b.bookmaker || 'Best Available',
             StakeAmount: b.stake_amount || 0,
-            StakePct: (b.kelly_fraction || 0) * 100, // Convert to %
+            StakePct: (b.kelly_fraction || 0) * 100,
             ExpectedProfit: b.expected_profit || 0
         }));
         setValueBets(formattedBets);
@@ -194,7 +193,19 @@ export function PredictionDashboard() {
       handlePredictMatches();
   }, [selectedDate]);
 
-  const filteredBets = valueBets?.filter(bet => bet.EV >= evThreshold) || [];
+  let filteredBets = valueBets?.filter(bet => bet.EV >= evThreshold) || [];
+
+  if (sortConfig !== null) {
+    filteredBets.sort((a, b) => {
+      if (a[sortConfig.key] < b[sortConfig.key]) {
+        return sortConfig.direction === 'asc' ? -1 : 1;
+      }
+      if (a[sortConfig.key] > b[sortConfig.key]) {
+        return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -348,11 +359,36 @@ export function PredictionDashboard() {
                               <tr>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Match</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Bet On</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Odds</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Model Prob</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">EV</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Stake ($)</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Exp. Profit</th>
+                                <th 
+                                  className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase cursor-pointer hover:text-emerald-600"
+                                  onClick={() => handleSort('Odds')}
+                                >
+                                  Odds {sortConfig?.key === 'Odds' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                </th>
+                                <th 
+                                  className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase cursor-pointer hover:text-emerald-600"
+                                  onClick={() => handleSort('Model Prob')}
+                                >
+                                  Model Prob {sortConfig?.key === 'Model Prob' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                </th>
+                                <th 
+                                  className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase cursor-pointer hover:text-emerald-600"
+                                  onClick={() => handleSort('EV')}
+                                >
+                                  EV {sortConfig?.key === 'EV' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                </th>
+                                <th 
+                                  className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase cursor-pointer hover:text-emerald-600"
+                                  onClick={() => handleSort('StakeAmount')}
+                                >
+                                  Stake ($) {sortConfig?.key === 'StakeAmount' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                </th>
+                                <th 
+                                  className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase cursor-pointer hover:text-emerald-600"
+                                  onClick={() => handleSort('ExpectedProfit')}
+                                >
+                                  Exp. Profit {sortConfig?.key === 'ExpectedProfit' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                                </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Bookmaker</th>
                               </tr>
                             </thead>
