@@ -23,6 +23,7 @@ interface Prediction {
   'Serve%': string;
   event_date: string;
   event_time?: string;
+  status?: string;
 }
 
 interface ValueBet {
@@ -94,11 +95,14 @@ export function PredictionDashboard() {
         const m = matchMap.get(p.event_key);
         if (!m) return null;
 
+        let status = 'Upcoming';
         if (m.event_time) {
             try {
                 const matchDateTime = new Date(`${m.event_date}T${m.event_time}:00`);
                 if (!isNaN(matchDateTime.getTime())) {
-                    if (matchDateTime < now) { return null; }
+                    const diffHours = (now.getTime() - matchDateTime.getTime()) / (1000 * 60 * 60);
+                    if (diffHours > 0 && diffHours < 3) status = 'Live';
+                    else if (diffHours >= 3) status = 'Finished';
                 }
             } catch (e) {}
         }
@@ -118,11 +122,17 @@ export function PredictionDashboard() {
           'Surf Elo Diff': p.elo_diff_surface,
           H2H: 'View', Fatigue: 'View', Streak: 'View', Age: 'View', 'Serve%': 'View',
           event_date: m.event_date,
-          event_time: m.event_time
+          event_time: m.event_time,
+          status: status // Add status
         };
       }).filter((p): p is Prediction => p !== null);
 
+      // Sort: Live -> Upcoming -> Finished
       formattedPredictions.sort((a, b) => {
+          const statusOrder = { 'Live': 0, 'Upcoming': 1, 'Finished': 2 };
+          if (statusOrder[a.status as keyof typeof statusOrder] !== statusOrder[b.status as keyof typeof statusOrder]) {
+              return statusOrder[a.status as keyof typeof statusOrder] - statusOrder[b.status as keyof typeof statusOrder];
+          }
           if (a.event_time && b.event_time) { return a.event_time.localeCompare(b.event_time); }
           return 0;
       });
@@ -215,7 +225,7 @@ export function PredictionDashboard() {
             </div>
             <div className="flex items-center gap-4">
               <span className="text-sm text-slate-400 hidden sm:inline font-mono">{user?.email}</span>
-              <Button variant="outline" onClick={signOut} size="sm" className="border-white/20 hover:bg-white/10 text-white">
+              <Button variant="dark-outline" onClick={signOut} size="sm">
                 Sign Out
               </Button>
             </div>
@@ -238,7 +248,7 @@ export function PredictionDashboard() {
                 className="bg-brand-dark border border-white/10 text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-tennis focus:border-transparent outline-none w-full md:w-48"
                 />
             </div>
-            <Button onClick={handlePredictMatches} disabled={loading} className="bg-tennis text-brand-dark hover:bg-tennis-dim font-bold w-full md:w-auto">
+            <Button onClick={handlePredictMatches} disabled={loading} variant="tennis" className="w-full md:w-auto font-bold">
                 {loading ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
                 {loading ? 'Analysing...' : 'Refresh Data'}
             </Button>

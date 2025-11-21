@@ -1,7 +1,5 @@
-import React from 'react';
-
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'dark-outline' | 'tennis';
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
 }
@@ -21,7 +19,9 @@ export function Button({
     primary: 'bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500',
     secondary: 'bg-slate-600 text-white hover:bg-slate-700 focus:ring-slate-500',
     outline: 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 focus:ring-emerald-500',
-    ghost: 'text-slate-700 hover:bg-slate-100 focus:ring-slate-500'
+    ghost: 'text-slate-700 hover:bg-slate-100 focus:ring-slate-500',
+    'dark-outline': 'border border-white/20 bg-transparent text-white hover:bg-white/10 focus:ring-white/50',
+    tennis: 'bg-tennis text-brand-dark hover:bg-tennis-dim focus:ring-tennis'
   };
   
   const sizeClasses = {
@@ -46,4 +46,3 @@ export function Button({
     </button>
   );
 }
-

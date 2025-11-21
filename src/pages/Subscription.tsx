@@ -21,10 +21,10 @@ export function Subscription() {
           </p>
           <div className="space-x-4">
             <Link to="/login">
-              <Button className="bg-tennis text-brand-dark hover:bg-tennis-dim">Sign In</Button>
+              <Button variant="tennis">Sign In</Button>
             </Link>
             <Link to="/signup">
-              <Button variant="outline" className="text-white border-white/20 hover:bg-white/10">Sign Up</Button>
+              <Button variant="dark-outline">Sign Up</Button>
             </Link>
           </div>
         </div>

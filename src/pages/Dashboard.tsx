@@ -25,7 +25,7 @@ export function Dashboard() {
               <span className="text-slate-400 text-sm hidden sm:inline font-mono">
                 {user?.email}
               </span>
-              <Button variant="outline" onClick={signOut} className="border-white/20 text-white hover:bg-white/10">
+              <Button variant="dark-outline" onClick={signOut}>
                 Sign Out
               </Button>
             </div>
@@ -77,7 +77,7 @@ export function Dashboard() {
                 You have full access to the SOTA V4 Model and Betting Terminal.
               </p>
               <Link to="/">
-                <Button className="bg-tennis text-brand-dark hover:bg-tennis-dim font-bold mb-6 w-full sm:w-auto">
+                <Button variant="tennis" className="font-bold mb-6 w-full sm:w-auto">
                     Launch Prediction Dashboard
                 </Button>
               </Link>
