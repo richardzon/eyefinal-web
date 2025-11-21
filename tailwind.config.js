@@ -7,45 +7,27 @@ export default {
   theme: {
     extend: {
       colors: {
-        slate: {
-          50: '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          300: '#cbd5e1',
-          400: '#94a3b8',
-          500: '#64748b',
-          600: '#475569',
-          700: '#334155',
-          800: '#1e293b',
-          900: '#0f172a',
+        // Modern "EyeTennis" Palette
+        tennis: {
+            DEFAULT: '#DFFF00', // Neon tennis ball
+            dim: '#B8D900',
         },
-        emerald: {
-          50: '#ecfdf5',
-          100: '#d1fae5',
-          200: '#a7f3d0',
-          300: '#6ee7b7',
-          400: '#34d399',
-          500: '#10b981',
-          600: '#059669',
-          700: '#047857',
-          800: '#065f46',
-          900: '#064e3b',
+        brand: {
+            dark: '#0F172A',    // Deep Slate/Navy
+            card: '#1E293B',    // Lighter Slate
+            surface: '#334155', // UI Elements
         },
-        teal: {
-          50: '#f0fdfa',
-          100: '#ccfbf1',
-          200: '#99f6e4',
-          300: '#5eead4',
-          400: '#2dd4bf',
-          500: '#14b8a6',
-          600: '#0d9488',
-          700: '#0f766e',
-          800: '#115e59',
-          900: '#134e4a',
-        },
+        accent: {
+            blue: '#38BDF8',    // Hard Court Blue
+            orange: '#FB923C',  // Clay Court Orange
+            green: '#4ADE80',   // Grass Green
+        }
       },
+      boxShadow: {
+        'neon': '0 0 10px rgba(223, 255, 0, 0.3)',
+        'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+      }
     },
   },
   plugins: [],
 }
-
