@@ -92,6 +92,51 @@ export type Database = {
           created_at?: string | null;
         };
       };
+      value_bets: {
+        Row: {
+          id: number;
+          event_key: string;
+          player_name: string;
+          bookmaker: string | null;
+          odds: number;
+          prob: number;
+          ev: number;
+          stake_amount: number | null;
+          kelly_fraction: number | null;
+          expected_profit: number | null;
+          bet_type: string | null;
+          model_version: string | null;
+          created_at: string | null;
+        };
+        Insert: {
+          event_key: string;
+          player_name: string;
+          bookmaker?: string | null;
+          odds: number;
+          prob: number;
+          ev: number;
+          stake_amount?: number | null;
+          kelly_fraction?: number | null;
+          expected_profit?: number | null;
+          bet_type?: string | null;
+          model_version?: string | null;
+          created_at?: string | null;
+        };
+        Update: {
+          event_key?: string;
+          player_name?: string;
+          bookmaker?: string | null;
+          odds?: number;
+          prob?: number;
+          ev?: number;
+          stake_amount?: number | null;
+          kelly_fraction?: number | null;
+          expected_profit?: number | null;
+          bet_type?: string | null;
+          model_version?: string | null;
+          created_at?: string | null;
+        };
+      };
       stripe_customers: {
         Row: {
           id: number;
