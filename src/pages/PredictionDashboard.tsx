@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/ui/Button';
-import { AlertCircle, TrendingUp, Calendar, RefreshCw, User } from 'lucide-react';
+import { AlertCircle, TrendingUp, Calendar, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface Prediction {
@@ -45,7 +45,6 @@ export function PredictionDashboard() {
     setLoading(true);
     setError(null);
     try {
-      // Fetch matches for the selected date
       const startDate = `${selectedDate}T00:00:00`;
       const endDate = `${selectedDate}T23:59:59`;
 
@@ -64,16 +63,16 @@ export function PredictionDashboard() {
 
       const eventKeys = matches.map(m => m.event_key);
 
-      // 2. Get Predictions for these matches
+      // 2. Get Predictions
       const { data: preds, error: predError } = await supabase
         .from('predictions')
         .select('*')
         .in('event_key', eventKeys)
-        .eq('model_version', 'v3_ensemble_singles'); // Ensure matches Python script
+        .eq('model_version', 'v3_ensemble_singles');
 
       if (predError) throw predError;
 
-      // 3. Merge Data
+      // 3. Format Data
       const matchMap = new Map(matches.map(m => [m.event_key, m]));
       
       const formattedPredictions: Prediction[] = preds.map(p => {
@@ -81,7 +80,6 @@ export function PredictionDashboard() {
         if (!m) return null;
 
         const winnerIsP1 = p.predicted_winner === m.first_player_name;
-        // Supabase stores prob_p1 and prob_p2 directly now
         const prob = winnerIsP1 ? p.prob_p1 : p.prob_p2;
 
         return {
@@ -94,7 +92,6 @@ export function PredictionDashboard() {
           Probability: prob,
           'Elo Diff': p.elo_diff_overall,
           'Surf Elo Diff': p.elo_diff_surface,
-          // Some fields might be missing if not stored in DB, using placeholders or calculated
           H2H: 'View details', 
           Fatigue: 'View details',
           Streak: 'View details',
@@ -104,6 +101,10 @@ export function PredictionDashboard() {
       }).filter((p): p is Prediction => p !== null);
 
       setPredictions(formattedPredictions);
+      
+      // 4. Also fetch Value Bets if available
+      await fetchValueBets(eventKeys);
+
     } catch (err) {
       console.error('Error fetching predictions:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -112,22 +113,39 @@ export function PredictionDashboard() {
     }
   };
 
-  const handleFindValueBets = async () => {
-    // Client-side value bet calculation if we don't have an odds API
-    // For now, we'll just show a placeholder or integrate a client-side odds fetcher if available
-    // Since the Python backend isn't available, we can't call /api/value-bets
-    // But we can show the UI logic if the user manually inputs odds (like in app_hosted.py)
-    // OR we can skip this feature for the static deployment
-    alert("Automatic odds fetching requires the Python engine running locally. Please use the manual calculator below.");
+  const fetchValueBets = async (eventKeys: string[]) => {
+    // Fetch pre-calculated value bets from Supabase
+    const { data: bets, error: betError } = await supabase
+        .from('value_bets')
+        .select('*')
+        .in('event_key', eventKeys);
+        
+    if (betError) {
+        console.error("Error fetching value bets", betError);
+        return;
+    }
+    
+    if (bets) {
+        // Get match names map
+        const { data: matches } = await supabase.from('matches').select('event_key, first_player_name, second_player_name').in('event_key', eventKeys);
+        const nameMap = new Map(matches?.map(m => [m.event_key, `${m.first_player_name} vs ${m.second_player_name}`]) || []);
+
+        const formattedBets: ValueBet[] = bets.map(b => ({
+            Match: nameMap.get(b.event_key) || 'Unknown',
+            'Bet On': b.player_name,
+            Odds: b.odds,
+            'Model Prob': b.prob * 100,
+            EV: b.ev * 100,
+            Bookmaker: b.bookmaker || 'Best Available'
+        }));
+        setValueBets(formattedBets);
+    }
   };
 
-  const handleUpdateData = async () => {
-    alert("To update data, please run 'python src/utils/sync_to_supabase.py' on your local machine.");
-  };
-
-  const handleFetchMetadata = async () => {
-     alert("To update metadata, please run the Python scripts locally.");
-  };
+  // Auto-load on date change
+  useEffect(() => {
+      handlePredictMatches();
+  }, [selectedDate]);
 
   const filteredBets = valueBets?.filter(bet => bet.EV >= evThreshold) || [];
 
@@ -150,34 +168,10 @@ export function PredictionDashboard() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <aside className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-              <h2 className="text-lg font-semibold text-slate-900 mb-4">Actions</h2>
-              <div className="space-y-3">
-                <Button
-                  onClick={handleUpdateData}
-                  disabled={loading}
-                  className="w-full justify-start"
-                  variant="outline"
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Update Data & Retrain
-                </Button>
-                <Button
-                  onClick={handleFetchMetadata}
-                  disabled={loading}
-                  className="w-full justify-start"
-                  variant="outline"
-                >
-                  <User className="w-4 h-4 mr-2" />
-                  Fetch Player Metadata
-                </Button>
-              </div>
-            </div>
-          </aside>
-
-          <main className="lg:col-span-3">
+        <div className="grid grid-cols-1 gap-6">
+          {/* Removed Sidebar Actions - Everything is automated now */}
+          
+          <main className="col-span-1">
             {error && (
               <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
                 <AlertCircle className="w-5 h-5 text-red-600 mr-3 mt-0.5" />
@@ -200,7 +194,7 @@ export function PredictionDashboard() {
                   />
                 </div>
                 <Button onClick={handlePredictMatches} disabled={loading}>
-                  {loading ? 'Loading...' : '🔮 Predict Matches'}
+                  {loading ? 'Loading...' : '🔮 Refresh'}
                 </Button>
               </div>
 
@@ -213,11 +207,6 @@ export function PredictionDashboard() {
                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Winner</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Prob</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Surface</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">H2H</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Fatigue</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Streak</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Age</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Serve%</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Tournament</th>
                       </tr>
                     </thead>
@@ -230,11 +219,6 @@ export function PredictionDashboard() {
                             {(pred.Probability * 100).toFixed(1)}%
                           </td>
                           <td className="px-4 py-3 text-sm text-slate-600">{pred.Surface}</td>
-                          <td className="px-4 py-3 text-sm text-slate-600">{pred.H2H}</td>
-                          <td className="px-4 py-3 text-sm text-slate-600">{pred.Fatigue}</td>
-                          <td className="px-4 py-3 text-sm text-slate-600">{pred.Streak}</td>
-                          <td className="px-4 py-3 text-sm text-slate-600">{pred.Age}</td>
-                          <td className="px-4 py-3 text-sm text-slate-600">{pred['Serve%']}</td>
                           <td className="px-4 py-3 text-sm text-slate-600">{pred.Tournament}</td>
                         </tr>
                       ))}
@@ -254,12 +238,8 @@ export function PredictionDashboard() {
               <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
                   <TrendingUp className="w-5 h-5 mr-2 text-emerald-600" />
-                  💰 Value Betting Analysis
+                  💰 Value Betting Analysis (Auto-Updated Hourly)
                 </h3>
-
-                <Button onClick={handleFindValueBets} disabled={loading} className="mb-6">
-                  Find Value Bets (Fetch Odds)
-                </Button>
 
                 {valueBets && (
                   <>
@@ -331,18 +311,18 @@ export function PredictionDashboard() {
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center">
                   <div className="text-2xl mb-2">✅</div>
-                  <div className="text-sm font-medium text-slate-900">Model</div>
-                  <div className="text-xs text-slate-500">Loaded</div>
+                  <div className="text-sm font-medium text-slate-900">Automation</div>
+                  <div className="text-xs text-slate-500">Active (Daily)</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl mb-2">✅</div>
-                  <div className="text-sm font-medium text-slate-900">Processor</div>
-                  <div className="text-xs text-slate-500">Ready</div>
+                  <div className="text-sm font-medium text-slate-900">Odds Sync</div>
+                  <div className="text-xs text-slate-500">Active (Hourly)</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl mb-2">✅</div>
-                  <div className="text-sm font-medium text-slate-900">Tournaments</div>
-                  <div className="text-xs text-slate-500">Loaded</div>
+                  <div className="text-sm font-medium text-slate-900">Database</div>
+                  <div className="text-xs text-slate-500">Connected</div>
                 </div>
               </div>
             </div>
@@ -352,4 +332,3 @@ export function PredictionDashboard() {
     </div>
   );
 }
-
