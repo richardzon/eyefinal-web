@@ -2,3 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+body {
+    @apply bg-brand-dark text-slate-100;
+}
+
+/* Custom Scrollbar for Terminal Look */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    @apply bg-brand-dark;
+}
+
+::-webkit-scrollbar-thumb {
+    @apply bg-brand-surface rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-500;
+}
+
+.glass-panel {
+    @apply bg-brand-card/50 backdrop-blur-lg border border-white/10;
+}
