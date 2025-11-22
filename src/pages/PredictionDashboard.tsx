@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/ui/Button';
-import { AlertCircle, TrendingUp, Calendar, Lock, Crown, Activity, Trophy, LayoutGrid, Clock, Filter, ChevronDown, ChevronRight, ChevronUp } from 'lucide-react';
+import { AlertCircle, TrendingUp, Calendar, Lock, Crown, Activity, Trophy, LayoutGrid, Clock, Filter, ChevronDown, ChevronRight, ChevronUp, DollarSign } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
 import { useSubscription } from '../hooks/useSubscription';
@@ -49,6 +49,15 @@ export function PredictionDashboard() {
   const [predictions, setPredictions] = useState<Prediction[] | null>(null);
   const [valueBets, setValueBets] = useState<ValueBet[] | null>(null);
   const [evThreshold, setEvThreshold] = useState(0);
+  const [bankroll, setBankroll] = useState(() => {
+      const saved = localStorage.getItem('eye_bankroll');
+      return saved ? parseFloat(saved) : 1000;
+  });
+  
+  useEffect(() => {
+      localStorage.setItem('eye_bankroll', bankroll.toString());
+  }, [bankroll]);
+
   const [sortConfig, setSortConfig] = useState<{ key: keyof ValueBet; direction: 'asc' | 'desc' } | null>({ key: 'EV', direction: 'desc' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -510,15 +519,34 @@ export function PredictionDashboard() {
                         <p className="text-sm text-slate-400 mt-1">Real-time odds analysis & Kelly Criterion sizing</p>
                     </div>
                     
-                    {/* Slider */}
-                    <div className="flex items-center gap-4 bg-brand-dark/50 p-2 rounded-lg border border-white/10">
-                        <span className="text-xs font-bold text-tennis whitespace-nowrap">EV Threshold: {evThreshold}%</span>
-                        <input
-                            type="range" min="-10" max="30" step="0.5"
-                            value={evThreshold}
-                            onChange={(e) => setEvThreshold(parseFloat(e.target.value))}
-                            className="w-32 md:w-48 accent-tennis h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer"
-                        />
+                    {/* Controls */}
+                    <div className="flex flex-wrap items-center gap-4">
+                        {/* Bankroll Input */}
+                        <div className="flex items-center gap-3 bg-brand-dark/50 p-2 rounded-lg border border-white/10">
+                            <span className="text-xs font-bold text-tennis whitespace-nowrap">
+                                <DollarSign className="w-3 h-3 inline mr-1" /> Bankroll
+                            </span>
+                            <div className="relative">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                                <input
+                                    type="number"
+                                    value={bankroll}
+                                    onChange={(e) => setBankroll(parseFloat(e.target.value) || 0)}
+                                    className="w-24 bg-slate-700 text-white text-sm rounded px-2 py-1 pl-5 focus:ring-1 focus:ring-tennis outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Slider */}
+                        <div className="flex items-center gap-3 bg-brand-dark/50 p-2 rounded-lg border border-white/10">
+                            <span className="text-xs font-bold text-tennis whitespace-nowrap">EV &gt; {evThreshold}%</span>
+                            <input
+                                type="range" min="-10" max="30" step="0.5"
+                                value={evThreshold}
+                                onChange={(e) => setEvThreshold(parseFloat(e.target.value))}
+                                className="w-24 md:w-32 accent-tennis h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -564,10 +592,10 @@ export function PredictionDashboard() {
                                             {bet.EV > 0 ? '+' : ''}{bet.EV.toFixed(1)}%
                                         </td>
                                         <td className="px-6 py-4 text-right font-mono text-white group-hover:text-tennis transition-colors">
-                                            ${bet.StakeAmount.toFixed(2)} <span className="text-slate-500 text-xs">({bet.StakePct.toFixed(1)}%)</span>
+                                            ${(bankroll * (bet.StakePct / 100)).toFixed(2)} <span className="text-slate-500 text-xs">({bet.StakePct.toFixed(1)}%)</span>
                                         </td>
                                         <td className="px-6 py-4 text-right font-mono font-bold text-accent-green">
-                                            +${bet.ExpectedProfit.toFixed(2)}
+                                            +${((bankroll * (bet.StakePct / 100)) * (bet.EV / 100)).toFixed(2)}
                                         </td>
                                         <td className="px-6 py-4 text-right text-xs text-slate-400 uppercase">{bet.Bookmaker}</td>
                                     </tr>
