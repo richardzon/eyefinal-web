@@ -3,6 +3,8 @@ import { StripeProduct } from '../../stripe-config';
 import { createCheckoutSession, redirectToCheckout } from '../../services/stripe';
 import { Button } from '../ui/Button';
 import { Alert } from '../ui/Alert';
+import { useSubscription } from '../../hooks/useSubscription';
+import { CheckCircle } from 'lucide-react';
 
 interface SubscriptionCardProps {
   product: StripeProduct;
@@ -11,6 +13,7 @@ interface SubscriptionCardProps {
 export function SubscriptionCard({ product }: SubscriptionCardProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { hasActiveSubscription, subscription } = useSubscription();
 
   const handleSubscribe = async () => {
     setLoading(true);
@@ -31,9 +34,18 @@ export function SubscriptionCard({ product }: SubscriptionCardProps) {
     }
   };
 
+  // Check if this is the user's current subscription
+  const isCurrentPlan = hasActiveSubscription && subscription?.price_id === product.priceId;
+
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+    <div className={`bg-white rounded-lg shadow-md p-6 border-2 ${isCurrentPlan ? 'border-emerald-500' : 'border-gray-200'}`}>
       <div className="text-center">
+        {isCurrentPlan && (
+          <div className="mb-3 flex items-center justify-center text-emerald-600">
+            <CheckCircle className="w-5 h-5 mr-2" />
+            <span className="text-sm font-semibold">Current Plan</span>
+          </div>
+        )}
         <h3 className="text-xl font-semibold text-gray-900 mb-2">
           {product.name}
         </h3>
@@ -48,21 +60,31 @@ export function SubscriptionCard({ product }: SubscriptionCardProps) {
             <span className="text-gray-600 ml-1">/month</span>
           )}
         </div>
-        
+
         {error && (
           <Alert type="error" className="mb-4">
             {error}
           </Alert>
         )}
-        
-        <Button
-          onClick={handleSubscribe}
-          loading={loading}
-          className="w-full"
-          size="lg"
-        >
-          {product.mode === 'subscription' ? 'Subscribe Now' : 'Buy Now'}
-        </Button>
+
+        {isCurrentPlan ? (
+          <Button
+            disabled
+            className="w-full"
+            size="lg"
+          >
+            Active
+          </Button>
+        ) : (
+          <Button
+            onClick={handleSubscribe}
+            loading={loading}
+            className="w-full"
+            size="lg"
+          >
+            {hasActiveSubscription ? 'Switch Plan' : (product.mode === 'subscription' ? 'Subscribe Now' : 'Buy Now')}
+          </Button>
+        )}
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import { useSubscription } from '../hooks/useSubscription';
 import { SubscriptionStatus } from '../components/subscription/SubscriptionStatus';
 import { Button } from '../components/ui/Button';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, User, Shield } from 'lucide-react';
+import { ArrowLeft, Shield } from 'lucide-react';
 
 export function Dashboard() {
   const { user, signOut } = useAuth();

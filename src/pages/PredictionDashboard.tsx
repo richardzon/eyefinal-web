@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/ui/Button';
-import { AlertCircle, TrendingUp, Calendar, RefreshCw, Lock, Crown, DollarSign, Activity, Trophy, LayoutGrid, List, Clock, Filter, ChevronDown, ChevronRight, ChevronUp } from 'lucide-react';
+import { AlertCircle, TrendingUp, Calendar, Lock, Crown, Activity, Trophy, LayoutGrid, Clock, Filter, ChevronDown, ChevronRight, ChevronUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
 import { useSubscription } from '../hooks/useSubscription';
@@ -22,8 +22,8 @@ interface Prediction {
   Age: string;
   'Serve%': string;
   event_date: string;
-  event_time?: string;
-  status?: string;
+  event_time: string | undefined;
+  status: string;
 }
 
 interface ValueBet {
@@ -383,7 +383,7 @@ export function PredictionDashboard() {
             </div>
 
             <Button onClick={handlePredictMatches} disabled={loading} variant="tennis" className="w-full xl:w-auto font-bold">
-                {loading ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                {loading && <span className="inline-block w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin mr-2" />}
                 {loading ? 'Analysing...' : 'Refresh Data'}
             </Button>
         </div>
