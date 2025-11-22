@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/ui/Button';
-import { AlertCircle, TrendingUp, Calendar, RefreshCw, Lock, Crown, DollarSign, Activity, Trophy, LayoutGrid, List, Clock, Filter } from 'lucide-react';
+import { AlertCircle, TrendingUp, Calendar, RefreshCw, Lock, Crown, DollarSign, Activity, Trophy, LayoutGrid, List, Clock, Filter, ChevronDown, ChevronRight, ChevronUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
 import { useSubscription } from '../hooks/useSubscription';
