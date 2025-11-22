@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/ui/Button';
-import { AlertCircle, TrendingUp, Calendar, RefreshCw, Lock, Crown, DollarSign, Activity, Trophy, LayoutGrid, List, Clock, Filter, ChevronDown, ChevronRight, ChevronUp } from 'lucide-react';
+import { AlertCircle, TrendingUp, Calendar, RefreshCw, Lock, Crown, DollarSign, Activity, Trophy, LayoutGrid, List, Clock, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
 import { useSubscription } from '../hooks/useSubscription';
@@ -64,7 +64,7 @@ export function PredictionDashboard() {
 
   const toggleAll = (expand: boolean) => {
       if (!predictions) return;
-      const groups = getGroupedPredictions();
+      const groups = getGroupedPredictions(); // We need keys
       const keys = Object.keys(groups);
       const newState: Record<string, boolean> = {};
       keys.forEach(k => newState[k] = expand);
@@ -104,7 +104,7 @@ export function PredictionDashboard() {
         .from('predictions')
         .select('*')
         .in('event_key', eventKeys)
-        .eq('model_version', 'v4_sota_singles');
+        .eq('model_version', 'v5_sota_singles');
 
       if (predError) throw predError;
 
@@ -147,6 +147,7 @@ export function PredictionDashboard() {
         };
       }).filter((p): p is Prediction => p !== null);
 
+      // Initial sorting is less important as we will group them, but good for 'time' view
       formattedPredictions.sort((a, b) => {
           if (a.event_time && b.event_time) { return a.event_time.localeCompare(b.event_time); }
           return 0;
@@ -201,8 +202,9 @@ export function PredictionDashboard() {
     });
   }
 
+  // --- RENDER HELPERS ---
   const getConfidenceColor = (prob: number) => {
-      if (prob > 0.8) return 'text-tennis';
+      if (prob > 0.8) return 'text-tennis'; // Neon Yellow
       if (prob > 0.6) return 'text-accent-green';
       return 'text-slate-400';
   };
@@ -215,6 +217,7 @@ export function PredictionDashboard() {
       return 'bg-slate-700 text-slate-300 border-slate-600';
   };
 
+  // --- GROUPING LOGIC ---
   const getGroupedPredictions = () => {
       if (!predictions) return {};
       
@@ -232,6 +235,7 @@ export function PredictionDashboard() {
               groups[key].push(p);
           });
       } else if (viewMode === 'confidence') {
+          // Buckets: "Very High (>80%)", "High (>70%)", "Medium (>60%)", "Low (<60%)"
           filtered.forEach(p => {
               let key = 'Low Confidence';
               if (p.Probability > 0.8) key = '🔥 Very High (>80%)';
@@ -240,7 +244,10 @@ export function PredictionDashboard() {
               if (!groups[key]) groups[key] = [];
               groups[key].push(p);
           });
+          // Sort buckets? We want Order: Very High -> High -> Medium -> Low
+          // We can handle render order later.
       } else {
+          // Time: "00:00", "01:00" etc.
           filtered.forEach(p => {
               const key = p.event_time || 'Unknown Time';
               if (!groups[key]) groups[key] = [];
@@ -248,6 +255,7 @@ export function PredictionDashboard() {
           });
       }
       
+      // Sort matches inside groups (usually by time)
       Object.keys(groups).forEach(k => {
           groups[k].sort((a, b) => (a.event_time || '').localeCompare(b.event_time || ''));
       });
@@ -256,8 +264,9 @@ export function PredictionDashboard() {
   };
 
   const groupedPreds = getGroupedPredictions();
-  const groupKeys = Object.keys(groupedPreds).sort();
+  const groupKeys = Object.keys(groupedPreds).sort(); // Default alpha sort
   
+  // Custom sort for Confidence buckets
   if (viewMode === 'confidence') {
       const order = ['🔥 Very High (>80%)', '✅ High (>70%)', '⚠️ Medium (>60%)', 'Low Confidence'];
       groupKeys.sort((a, b) => {
@@ -269,6 +278,8 @@ export function PredictionDashboard() {
 
   return (
     <div className="min-h-screen bg-brand-dark font-sans text-slate-200 selection:bg-tennis selection:text-brand-dark">
+      
+      {/* --- NAVBAR --- */}
       <nav className="sticky top-0 z-50 glass-panel border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -277,7 +288,7 @@ export function PredictionDashboard() {
                     <span className="text-tennis">🎾</span>
                     <span className="text-white">Eye</span>
                     <span className="text-tennis">Tennis</span>
-                    <span className="text-xs bg-white/10 px-2 py-0.5 rounded text-slate-300 ml-2 font-mono">V4.SOTA</span>
+                    <span className="text-xs bg-white/10 px-2 py-0.5 rounded text-slate-300 ml-2 font-mono">V5.SOTA</span>
                 </h1>
                 <div className="hidden md:flex ml-10 space-x-1">
                     <Link to="/dashboard" className="text-white hover:bg-white/10 px-3 py-2 rounded-md text-sm font-medium transition-colors">Dashboard</Link>
@@ -299,6 +310,13 @@ export function PredictionDashboard() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
+import { ChevronDown, ChevronRight, ChevronUp } from 'lucide-react'; // Add icons
+
+// ... imports
+
+// Inside PredictionDashboard component:
+
+        {/* --- CONTROLS --- */}
         <div className="flex flex-col xl:flex-row items-end xl:items-center justify-between gap-4 glass-panel p-4 rounded-xl">
             <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto">
                 <div>
@@ -313,6 +331,7 @@ export function PredictionDashboard() {
                     />
                 </div>
                 
+                {/* View Mode Switcher */}
                 <div>
                     <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
                         <LayoutGrid className="w-3 h-3 inline mr-1" /> Group By
@@ -339,6 +358,7 @@ export function PredictionDashboard() {
                     </div>
                 </div>
 
+                {/* Filter Toggle & Expansion */}
                 <div className="flex gap-2">
                     <div>
                         <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
@@ -360,7 +380,7 @@ export function PredictionDashboard() {
                                 <ChevronDown className="w-4 h-4" />
                             </button>
                             <button onClick={() => toggleAll(false)} className="px-3 py-2 rounded-lg border border-white/10 bg-brand-dark text-slate-400 hover:text-white text-xs">
-                                <ChevronRight className="w-4 h-4" />
+                                <ChevronUp className="w-4 h-4" />
                             </button>
                         </div>
                     </div>
@@ -380,6 +400,7 @@ export function PredictionDashboard() {
             </div>
         )}
 
+        {/* --- MATCH CARDS GRID --- */}
         <div>
             <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                 <Activity className="w-5 h-5 text-accent-blue" />
@@ -392,7 +413,9 @@ export function PredictionDashboard() {
             {predictions && predictions.length > 0 ? (
                 <div className="space-y-4">
                     {groupKeys.map((groupKey) => {
-                        const isExpanded = expandedGroups[groupKey] !== false; 
+                        const isExpanded = expandedGroups[groupKey] !== false; // Default to Expanded? Or Collapsed? Let's default to Expanded for now, but user can collapse.
+                        // Actually, let's default to Collapsed for 'Tournament' view if there are many groups?
+                        // Let's default to Expanded for simplicity, but allow collapse.
                         
                         return (
                         <div key={groupKey} className="border border-white/5 rounded-xl overflow-hidden bg-brand-card/30">
@@ -424,6 +447,7 @@ export function PredictionDashboard() {
                                             const [p1, p2] = pred.Match.split(' vs ');
                                             return (
                                                 <div key={idx} className="glass-panel p-4 rounded-lg hover:border-tennis/50 transition-all group relative overflow-hidden">
+                                                    {/* Simplified Card Content */}
                                                     <div className="flex justify-between items-center mb-3">
                                                         <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${getSurfaceColor(pred.Surface)}`}>
                                                             {pred.Surface}
@@ -434,6 +458,7 @@ export function PredictionDashboard() {
                                                     </div>
 
                                                     <div className="space-y-2">
+                                                        {/* Player 1 */}
                                                         <div className="flex justify-between items-center">
                                                             <span className={`font-bold text-sm ${pred['Winner Is P1'] ? 'text-white' : 'text-slate-500'}`}>
                                                                 {p1}
@@ -441,6 +466,7 @@ export function PredictionDashboard() {
                                                             {pred['Winner Is P1'] && <Trophy className="w-3 h-3 text-tennis" />}
                                                         </div>
                                                         
+                                                        {/* Probability Bar */}
                                                         <div className="h-1 bg-brand-dark rounded-full overflow-hidden flex">
                                                             <div 
                                                                 className={`h-full transition-all duration-1000 ${pred['Winner Is P1'] ? 'bg-tennis' : 'bg-slate-700'}`} 
@@ -448,6 +474,7 @@ export function PredictionDashboard() {
                                                             />
                                                         </div>
 
+                                                        {/* Player 2 */}
                                                         <div className="flex justify-between items-center">
                                                             <span className={`font-bold text-sm ${!pred['Winner Is P1'] ? 'text-white' : 'text-slate-500'}`}>
                                                                 {p2}
@@ -476,6 +503,7 @@ export function PredictionDashboard() {
             )}
         </div>
 
+        {/* --- VALUE BETTING TERMINAL --- */}
         {predictions && predictions.length > 0 && (
             <div className="glass-panel rounded-xl overflow-hidden border border-tennis/20 shadow-neon mt-12">
                 <div className="p-6 border-b border-white/10 bg-brand-card/80 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -487,6 +515,7 @@ export function PredictionDashboard() {
                         <p className="text-sm text-slate-400 mt-1">Real-time odds analysis & Kelly Criterion sizing</p>
                     </div>
                     
+                    {/* Slider */}
                     <div className="flex items-center gap-4 bg-brand-dark/50 p-2 rounded-lg border border-white/10">
                         <span className="text-xs font-bold text-tennis whitespace-nowrap">EV Threshold: {evThreshold}%</span>
                         <input

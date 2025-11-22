@@ -38,18 +38,18 @@ export function useSubscription() {
       setError(null);
 
       const { data, error: fetchError } = await supabase
-        .rpc('get_user_subscription');
+        .from('stripe_user_subscriptions')
+        .select('*')
+        .maybeSingle();
 
       if (fetchError) {
         throw fetchError;
       }
 
-      const subscriptionData = Array.isArray(data) && data.length > 0 ? data[0] : null;
-
-      if (subscriptionData) {
-        const product = subscriptionData.price_id ? getProductByPriceId(subscriptionData.price_id) : null;
+      if (data) {
+        const product = data.price_id ? getProductByPriceId(data.price_id) : null;
         setSubscription({
-          ...subscriptionData,
+          ...data,
           product_name: product?.name
         });
       } else {
@@ -71,7 +71,6 @@ export function useSubscription() {
     loading,
     error,
     hasActiveSubscription,
-    isSubscribed: hasActiveSubscription,
     refetch: fetchSubscription
   };
 }

@@ -26,3 +26,4 @@ body {
 .glass-panel {
     @apply bg-brand-card/50 backdrop-blur-lg border border-white/10;
 }
+

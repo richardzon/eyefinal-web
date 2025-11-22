@@ -1,3 +1,5 @@
+import React from 'react';
+
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'dark-outline' | 'tennis';
   size?: 'sm' | 'md' | 'lg';
@@ -46,3 +48,4 @@ export function Button({
     </button>
   );
 }
+
