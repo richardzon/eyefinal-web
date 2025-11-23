@@ -44,7 +44,7 @@ export function PredictionDashboard() {
   const { user, signOut } = useAuth();
   const { isSubscribed, loading: subLoading } = useSubscription();
   const [selectedDate, setSelectedDate] = useState(
-    new Date(Date.now() + 86400000).toISOString().split('T')[0]
+    new Date().toISOString().split('T')[0]
   );
   const [predictions, setPredictions] = useState<Prediction[] | null>(null);
   const [valueBets, setValueBets] = useState<ValueBet[] | null>(null);
