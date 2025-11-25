@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/ui/Button';
-import { AlertCircle, TrendingUp, Calendar, Lock, Crown, Activity, Trophy, LayoutGrid, Clock, Filter, ChevronDown, ChevronRight, ChevronUp, DollarSign } from 'lucide-react';
+import { AlertCircle, TrendingUp, Calendar, Lock, Crown, Activity, Trophy, LayoutGrid, Clock, Filter, ChevronDown, ChevronRight, ChevronUp, DollarSign, Zap, Timer } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
 import { useSubscription } from '../hooks/useSubscription';
@@ -285,6 +285,85 @@ export function PredictionDashboard() {
       });
   }
 
+  // --- TOP PICKS: High confidence matches starting in the next few hours ---
+  const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // Update current time every minute
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const topPicks = useMemo(() => {
+    if (!predictions || predictions.length === 0) return [];
+    
+    const now = currentTime;
+    const isToday = selectedDate === now.toISOString().split('T')[0];
+    
+    // Filter for high confidence (>65%) matches starting within the next 6 hours
+    return predictions
+      .filter(p => {
+        // Must be high confidence
+        if (p.Probability < 0.65) return false;
+        
+        // Must not be finished
+        if (p.status === 'Finished') return false;
+        
+        // If viewing today, filter by time
+        if (isToday && p.event_time) {
+          try {
+            // Parse match time (assuming UTC from API, convert to local)
+            const [hours, mins] = p.event_time.split(':').map(Number);
+            const matchTime = new Date(now);
+            matchTime.setHours(hours, mins, 0, 0);
+            
+            // Calculate hours until match (can be negative if already started)
+            const hoursUntil = (matchTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+            
+            // Show matches starting in next 6 hours or just started (up to 1 hour ago)
+            return hoursUntil >= -1 && hoursUntil <= 6;
+          } catch (e) {
+            return true; // Include if time parsing fails
+          }
+        }
+        
+        // For future dates, include all high confidence
+        return true;
+      })
+      .sort((a: Prediction, b: Prediction) => {
+        // Sort by time first, then by probability
+        if (a.event_time && b.event_time) {
+          const timeCompare = a.event_time.localeCompare(b.event_time);
+          if (timeCompare !== 0) return timeCompare;
+        }
+        return b.Probability - a.Probability;
+      })
+      .slice(0, 5); // Top 5 picks
+  }, [predictions, currentTime, selectedDate]);
+
+  // Helper to format time until match
+  const getTimeUntil = (eventTime: string | undefined): string => {
+    if (!eventTime) return '';
+    try {
+      const now = currentTime;
+      const [hours, mins] = eventTime.split(':').map(Number);
+      const matchTime = new Date(now);
+      matchTime.setHours(hours, mins, 0, 0);
+      
+      const diffMs = matchTime.getTime() - now.getTime();
+      const diffMins = Math.round(diffMs / (1000 * 60));
+      
+      if (diffMins < -60) return 'Started';
+      if (diffMins < 0) return 'Live now';
+      if (diffMins < 60) return `${diffMins}m`;
+      const diffHours = Math.floor(diffMins / 60);
+      const remainingMins = diffMins % 60;
+      return `${diffHours}h ${remainingMins}m`;
+    } catch (e) {
+      return eventTime;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-brand-dark font-sans text-slate-200 selection:bg-tennis selection:text-brand-dark">
       
@@ -402,6 +481,90 @@ export function PredictionDashboard() {
             <AlertCircle className="w-5 h-5 mr-3" />
             {error}
             </div>
+        )}
+
+        {/* --- TOP PICKS SECTION --- */}
+        {topPicks.length > 0 && (
+          <div className="glass-panel rounded-xl overflow-hidden border-2 border-tennis/30 shadow-neon">
+            <div className="p-4 bg-gradient-to-r from-tennis/20 to-transparent border-b border-tennis/20">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-tennis" />
+                  Top Picks
+                  <span className="text-xs bg-tennis/20 text-tennis px-2 py-0.5 rounded-full font-mono">
+                    Next {selectedDate === currentTime.toISOString().split('T')[0] ? '6 hours' : 'day'}
+                  </span>
+                </h2>
+                <div className="text-xs text-slate-400 font-mono flex items-center gap-1">
+                  <Timer className="w-3 h-3" />
+                  {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+              <p className="text-sm text-slate-400 mt-1">High confidence matches starting soon</p>
+            </div>
+            
+            <div className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                {topPicks.map((pick: Prediction, idx: number) => {
+                  const [p1, p2] = pick.Match.split(' vs ');
+                  const timeUntil = getTimeUntil(pick.event_time);
+                  const isLive = timeUntil === 'Live now' || timeUntil === 'Started';
+                  
+                  return (
+                    <div 
+                      key={pick.event_key} 
+                      className={`relative p-3 rounded-lg border transition-all hover:scale-[1.02] ${
+                        isLive 
+                          ? 'bg-red-500/10 border-red-500/30 animate-pulse' 
+                          : 'bg-brand-card/50 border-white/10 hover:border-tennis/50'
+                      }`}
+                    >
+                      {/* Rank Badge */}
+                      <div className="absolute -top-2 -left-2 w-6 h-6 bg-tennis text-brand-dark rounded-full flex items-center justify-center text-xs font-bold">
+                        {idx + 1}
+                      </div>
+                      
+                      {/* Time Badge */}
+                      <div className={`absolute -top-2 -right-2 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        isLive 
+                          ? 'bg-red-500 text-white animate-pulse' 
+                          : 'bg-brand-dark border border-white/20 text-slate-300'
+                      }`}>
+                        {isLive ? '🔴 LIVE' : timeUntil || pick.event_time}
+                      </div>
+                      
+                      {/* Content */}
+                      <div className="mt-2 space-y-2">
+                        <div className={`text-[10px] font-bold px-1.5 py-0.5 rounded border inline-block ${getSurfaceColor(pick.Surface)}`}>
+                          {pick.Surface}
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <div className={`text-xs truncate ${pick['Winner Is P1'] ? 'text-white font-bold' : 'text-slate-500'}`}>
+                            {pick['Winner Is P1'] && <Trophy className="w-3 h-3 inline mr-1 text-tennis" />}
+                            {p1}
+                          </div>
+                          <div className={`text-xs truncate ${!pick['Winner Is P1'] ? 'text-white font-bold' : 'text-slate-500'}`}>
+                            {!pick['Winner Is P1'] && <Trophy className="w-3 h-3 inline mr-1 text-tennis" />}
+                            {p2}
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-between pt-1 border-t border-white/5">
+                          <span className={`font-mono font-bold text-sm ${getConfidenceColor(pick.Probability)}`}>
+                            {(pick.Probability * 100).toFixed(0)}%
+                          </span>
+                          <span className="text-[10px] text-slate-500 truncate max-w-[60px]">
+                            {pick.Tournament.split(' ').slice(0, 2).join(' ')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* --- MATCH CARDS GRID --- */}
