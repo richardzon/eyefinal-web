@@ -36,6 +36,8 @@ interface Prediction {
   retirement_warning?: string;
   p1_days_since_retirement?: number;
   p2_days_since_retirement?: number;
+  // Bookmaker odds (V6 feature)
+  odds_data?: Record<string, { p1: number; p2: number }>;
 }
 
 interface ValueBet {
@@ -78,6 +80,12 @@ export function PredictionDashboard() {
   const [viewMode, setViewMode] = useState<ViewMode>('tournament');
   const [highConfidenceOnly, setHighConfidenceOnly] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  
+  // Bookmaker selection (V6 feature)
+  const [selectedBookmaker, setSelectedBookmaker] = useState<string>(() => {
+    return localStorage.getItem('eye_bookmaker') || '1xbet';
+  });
+  const [availableBookmakers, setAvailableBookmakers] = useState<string[]>([]);
 
   const toggleGroup = (key: string) => {
       setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
@@ -164,7 +172,9 @@ export function PredictionDashboard() {
           // Retirement tracking (V6 feature)
           retirement_warning: p.retirement_warning,
           p1_days_since_retirement: p.p1_days_since_retirement,
-          p2_days_since_retirement: p.p2_days_since_retirement
+          p2_days_since_retirement: p.p2_days_since_retirement,
+          // Bookmaker odds (V6 feature)
+          odds_data: m.odds_data || {}
         };
       }).filter((p): p is Prediction => p !== null);
 
@@ -175,6 +185,15 @@ export function PredictionDashboard() {
       });
 
       setPredictions(formattedPredictions);
+      
+      // Extract available bookmakers from all predictions
+      const bookieSet = new Set<string>();
+      formattedPredictions.forEach(p => {
+        if (p.odds_data) {
+          Object.keys(p.odds_data).forEach(bookie => bookieSet.add(bookie));
+        }
+      });
+      setAvailableBookmakers(Array.from(bookieSet).sort());
       
       const visibleEventKeys = formattedPredictions.map(p => p.event_key);
       if (visibleEventKeys.length > 0) {
@@ -243,6 +262,10 @@ export function PredictionDashboard() {
       if (!predictions) return {};
       
       let filtered = predictions;
+      
+      // Filter by selected bookmaker - only show matches with odds from this bookie
+      filtered = filtered.filter(p => p.odds_data && p.odds_data[selectedBookmaker]);
+      
       if (highConfidenceOnly) {
           filtered = filtered.filter(p => p.Probability > 0.60);
       }
@@ -467,6 +490,26 @@ export function PredictionDashboard() {
                             <Clock className="w-4 h-4 inline mr-1" /> Time
                         </button>
                     </div>
+                </div>
+
+                {/* Bookmaker Selector */}
+                <div>
+                    <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
+                        <DollarSign className="w-3 h-3 inline mr-1" /> Bookmaker
+                    </label>
+                    <select
+                        value={selectedBookmaker}
+                        onChange={(e) => setSelectedBookmaker(e.target.value)}
+                        className="bg-brand-dark border border-white/10 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-tennis focus:border-transparent outline-none text-sm"
+                    >
+                        {availableBookmakers.length > 0 ? (
+                            availableBookmakers.map(bookie => (
+                                <option key={bookie} value={bookie}>{bookie}</option>
+                            ))
+                        ) : (
+                            <option value="1xbet">1xbet</option>
+                        )}
+                    </select>
                 </div>
 
                 {/* Filter Toggle & Expansion */}
