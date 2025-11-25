@@ -338,7 +338,7 @@ export function PredictionDashboard() {
         }
         return b.Probability - a.Probability;
       })
-      .slice(0, 5); // Top 5 picks
+      .slice(0, 10); // Top 10 picks
   }, [predictions, currentTime, selectedDate]);
 
   // Helper to format time until match
@@ -503,8 +503,8 @@ export function PredictionDashboard() {
               <p className="text-sm text-slate-400 mt-1">High confidence matches starting soon</p>
             </div>
             
-            <div className="p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div className="p-4 overflow-x-auto">
+              <div className="flex gap-3 pb-2">
                 {topPicks.map((pick: Prediction, idx: number) => {
                   const [p1, p2] = pick.Match.split(' vs ');
                   const timeUntil = getTimeUntil(pick.event_time);
@@ -513,7 +513,7 @@ export function PredictionDashboard() {
                   return (
                     <div 
                       key={pick.event_key} 
-                      className={`relative p-3 rounded-lg border transition-all hover:scale-[1.02] ${
+                      className={`relative p-3 rounded-lg border transition-all hover:scale-[1.02] min-w-[180px] w-[180px] flex-shrink-0 ${
                         isLive 
                           ? 'bg-red-500/10 border-red-500/30 animate-pulse' 
                           : 'bg-brand-card/50 border-white/10 hover:border-tennis/50'
