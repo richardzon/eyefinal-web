@@ -342,26 +342,42 @@ export function PredictionDashboard() {
   }, [predictions, currentTime, selectedDate]);
 
   // Helper to format time until match
-  const getTimeUntil = (eventTime: string | undefined): string => {
+  const getTimeUntil = (eventTime: string | undefined, eventDate: string | undefined): string => {
     if (!eventTime) return '';
-    try {
-      const now = currentTime;
-      const [hours, mins] = eventTime.split(':').map(Number);
-      const matchTime = new Date(now);
-      matchTime.setHours(hours, mins, 0, 0);
-      
-      const diffMs = matchTime.getTime() - now.getTime();
-      const diffMins = Math.round(diffMs / (1000 * 60));
-      
-      if (diffMins < -60) return 'Started';
-      if (diffMins < 0) return 'Live now';
-      if (diffMins < 60) return `${diffMins}m`;
-      const diffHours = Math.floor(diffMins / 60);
-      const remainingMins = diffMins % 60;
-      return `${diffHours}h ${remainingMins}m`;
-    } catch (e) {
+    
+    const now = currentTime;
+    const todayStr = now.toISOString().split('T')[0];
+    const isToday = eventDate === todayStr;
+    const isFuture = eventDate && eventDate > todayStr;
+    
+    // For future dates, just return the scheduled time - no live calculation
+    if (isFuture) {
       return eventTime;
     }
+    
+    // For today, attempt time comparison (imperfect due to venue timezone)
+    if (isToday) {
+      try {
+        const [hours, mins] = eventTime.split(':').map(Number);
+        const matchTime = new Date(now);
+        matchTime.setHours(hours, mins, 0, 0);
+        
+        const diffMs = matchTime.getTime() - now.getTime();
+        const diffMins = Math.round(diffMs / (1000 * 60));
+        
+        if (diffMins < -60) return 'Started';
+        if (diffMins < 0) return 'Live now';
+        if (diffMins < 60) return `${diffMins}m`;
+        const diffHours = Math.floor(diffMins / 60);
+        const remainingMins = diffMins % 60;
+        return `${diffHours}h ${remainingMins}m`;
+      } catch (e) {
+        return eventTime;
+      }
+    }
+    
+    // Past dates - just show time
+    return eventTime;
   };
 
   return (
@@ -491,7 +507,7 @@ export function PredictionDashboard() {
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
                   <Zap className="w-5 h-5 text-tennis" />
                   Top Picks
-                  <span className="text-xs bg-tennis/20 text-tennis px-2 py-0.5 rounded-full font-mono">
+                  <span className="text-xs bg-white/10 px-2 py-0.5 rounded-full text-slate-300 ml-2 font-mono">
                     Next {selectedDate === currentTime.toISOString().split('T')[0] ? '6 hours' : 'day'}
                   </span>
                 </h2>
@@ -507,8 +523,11 @@ export function PredictionDashboard() {
               <div className="flex gap-3 pb-2">
                 {topPicks.map((pick: Prediction, idx: number) => {
                   const [p1, p2] = pick.Match.split(' vs ');
-                  const timeUntil = getTimeUntil(pick.event_time);
-                  const isLive = timeUntil === 'Live now' || timeUntil === 'Started';
+                  const timeUntil = getTimeUntil(pick.event_time, pick.event_date);
+                  // Only show live indicator for today's matches
+                  const todayStr = currentTime.toISOString().split('T')[0];
+                  const isToday = pick.event_date === todayStr;
+                  const isLive = isToday && (timeUntil === 'Live now' || timeUntil === 'Started');
                   
                   return (
                     <div 
