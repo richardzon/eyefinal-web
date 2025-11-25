@@ -233,7 +233,15 @@ export function PredictionDashboard() {
 
   useEffect(() => { handlePredictMatches(); }, [selectedDate]);
 
-  let filteredBets = valueBets?.filter(bet => bet.EV >= evThreshold) || [];
+  // Filter value bets by selected bookmaker and EV threshold
+  let filteredBets = valueBets?.filter(bet => {
+    // Filter by EV threshold
+    if (bet.EV < evThreshold) return false;
+    // Filter by selected bookmaker (case-insensitive match)
+    const betBookie = bet.Bookmaker.toLowerCase().replace(/\s+/g, '');
+    const selectedBookie = selectedBookmaker.toLowerCase().replace(/\s+/g, '');
+    return betBookie === selectedBookie || betBookie.includes(selectedBookie) || selectedBookie.includes(betBookie);
+  }) || [];
   if (sortConfig !== null) {
     filteredBets.sort((a, b) => {
       if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
