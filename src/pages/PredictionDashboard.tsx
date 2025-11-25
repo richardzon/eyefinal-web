@@ -32,6 +32,10 @@ interface Prediction {
     current_game: string;
     serving: string | null;
   };
+  // Retirement tracking (V6 feature)
+  retirement_warning?: string;
+  p1_days_since_retirement?: number;
+  p2_days_since_retirement?: number;
 }
 
 interface ValueBet {
@@ -156,7 +160,11 @@ export function PredictionDashboard() {
           // Pass through real live data from API
           event_live: m.event_live || false,
           event_status: m.event_status,
-          live_score: m.live_score
+          live_score: m.live_score,
+          // Retirement tracking (V6 feature)
+          retirement_warning: p.retirement_warning,
+          p1_days_since_retirement: p.p1_days_since_retirement,
+          p2_days_since_retirement: p.p2_days_since_retirement
         };
       }).filter((p): p is Prediction => p !== null);
 
@@ -679,6 +687,18 @@ export function PredictionDashboard() {
                                                         <div className={`font-mono font-bold text-sm ${getConfidenceColor(pred.Probability)}`}>
                                                             {(pred.Probability * 100).toFixed(1)}%
                                                         </div>
+                                                        {/* Retirement Warning Badge */}
+                                                        {pred.retirement_warning && (
+                                                            <div className="flex items-center gap-1 text-[10px] bg-accent-orange/20 text-accent-orange px-1.5 py-0.5 rounded border border-accent-orange/30" title="Recent retirement detected - probability adjusted">
+                                                                <AlertCircle className="w-3 h-3" />
+                                                                {pred.p1_days_since_retirement !== null && pred.p1_days_since_retirement !== undefined && pred.p1_days_since_retirement <= 7 && (
+                                                                    <span>P1:{pred.p1_days_since_retirement}d</span>
+                                                                )}
+                                                                {pred.p2_days_since_retirement !== null && pred.p2_days_since_retirement !== undefined && pred.p2_days_since_retirement <= 7 && (
+                                                                    <span>P2:{pred.p2_days_since_retirement}d</span>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             );
