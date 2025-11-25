@@ -664,9 +664,9 @@ export function PredictionDashboard() {
             {predictions && predictions.length > 0 ? (
                 <div className="space-y-4">
                     {groupKeys.map((groupKey) => {
-                        const isExpanded = expandedGroups[groupKey] !== false; // Default to Expanded? Or Collapsed? Let's default to Expanded for now, but user can collapse.
-                        // Actually, let's default to Collapsed for 'Tournament' view if there are many groups?
-                        // Let's default to Expanded for simplicity, but allow collapse.
+                        // Tournament view: collapsed by default. Confidence/Time views: expanded by default.
+                        const defaultExpanded = viewMode !== 'tournament';
+                        const isExpanded = expandedGroups[groupKey] ?? defaultExpanded;
                         
                         return (
                         <div key={groupKey} className="border border-white/5 rounded-xl overflow-hidden bg-brand-card/30">
