@@ -24,6 +24,14 @@ interface Prediction {
   event_date: string;
   event_time: string | undefined;
   status: string;
+  // Live status from API (not guessed from timezone)
+  event_live?: boolean;
+  event_status?: string;
+  live_score?: {
+    sets: Array<{ set: string; p1: string; p2: string }>;
+    current_game: string;
+    serving: string | null;
+  };
 }
 
 interface ValueBet {
@@ -118,26 +126,18 @@ export function PredictionDashboard() {
       if (predError) throw predError;
 
       const matchMap = new Map(matches.map(m => [m.event_key, m]));
-      const now = new Date();
       
       const formattedPredictions: Prediction[] = preds.map(p => {
         const m = matchMap.get(p.event_key);
         if (!m) return null;
 
-        let status = 'Upcoming';
-        if (m.event_time) {
-            try {
-                const matchDateTime = new Date(`${m.event_date}T${m.event_time}:00`);
-                if (!isNaN(matchDateTime.getTime())) {
-                    const diffHours = (now.getTime() - matchDateTime.getTime()) / (1000 * 60 * 60);
-                    if (diffHours > 0 && diffHours < 3) status = 'Live';
-                    else if (diffHours >= 3) status = 'Finished';
-                }
-            } catch (e) {}
-        }
-
         const winnerIsP1 = p.predicted_winner === m.first_player_name;
         const prob = winnerIsP1 ? p.prob_p1 : p.prob_p2;
+
+        // Use real live status from API if available (event_live from livescore sync)
+        // This is the source of truth - no timezone guessing needed!
+        const realStatus = m.event_live ? (m.event_status || 'Live') : 
+                          (m.winner ? 'Finished' : 'Upcoming');
 
         return {
           event_key: p.event_key,
@@ -152,7 +152,11 @@ export function PredictionDashboard() {
           H2H: 'View', Fatigue: 'View', Streak: 'View', Age: 'View', 'Serve%': 'View',
           event_date: m.event_date,
           event_time: m.event_time,
-          status: status
+          status: realStatus,
+          // Pass through real live data from API
+          event_live: m.event_live || false,
+          event_status: m.event_status,
+          live_score: m.live_score
         };
       }).filter((p): p is Prediction => p !== null);
 
@@ -524,10 +528,12 @@ export function PredictionDashboard() {
                 {topPicks.map((pick: Prediction, idx: number) => {
                   const [p1, p2] = pick.Match.split(' vs ');
                   const timeUntil = getTimeUntil(pick.event_time, pick.event_date);
-                  // Only show live indicator for today's matches
-                  const todayStr = currentTime.toISOString().split('T')[0];
-                  const isToday = pick.event_date === todayStr;
-                  const isLive = isToday && (timeUntil === 'Live now' || timeUntil === 'Started');
+                  // Use REAL live status from API - no timezone guessing!
+                  const isLive = pick.event_live === true;
+                  // Format live score if available
+                  const liveScoreText = isLive && pick.live_score?.sets?.length 
+                    ? pick.live_score.sets.map(s => `${s.p1}-${s.p2}`).join(' ')
+                    : null;
                   
                   return (
                     <div 
