@@ -10,7 +10,33 @@ interface TelegramStatus {
   username?: string;
   activated_at?: string;
   subscription_status?: string;
+  alert_mode?: 'sniper' | 'balanced' | 'everything';
+  sleep_mode?: boolean;
 }
+
+const ALERT_MODES = {
+  sniper: {
+    icon: '🎯',
+    name: 'Sniper',
+    description: 'Only the best',
+    details: 'EV > 25%, ATP/WTA only',
+    alerts: '2-5/day'
+  },
+  balanced: {
+    icon: '⚡',
+    name: 'Balanced',
+    description: 'Good balance',
+    details: 'EV > 15%, Top tournaments',
+    alerts: '10-20/day'
+  },
+  everything: {
+    icon: '🌊',
+    name: 'Everything',
+    description: 'All value bets',
+    details: 'EV > 10%, All tournaments',
+    alerts: '50+/day'
+  }
+} as const;
 
 interface LinkCode {
   code: string;
@@ -27,6 +53,9 @@ export function TelegramActivation() {
   const [generating, setGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [alertMode, setAlertMode] = useState<'sniper' | 'balanced' | 'everything'>('balanced');
+  const [sleepMode, setSleepMode] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
 
   const BOT_USERNAME = 'acepredictorbot';
   const BOT_LINK = `https://t.me/${BOT_USERNAME}`;
@@ -57,8 +86,12 @@ export function TelegramActivation() {
           linked: true,
           username: subscriber.username,
           activated_at: subscriber.activated_at,
-          subscription_status: subscriber.subscription_status
+          subscription_status: subscriber.subscription_status,
+          alert_mode: subscriber.alert_mode || 'balanced',
+          sleep_mode: subscriber.sleep_mode || false
         });
+        setAlertMode(subscriber.alert_mode || 'balanced');
+        setSleepMode(subscriber.sleep_mode || false);
         setLinkCode(null);
       } else {
         setTelegramStatus({ linked: false });
@@ -188,6 +221,31 @@ export function TelegramActivation() {
     );
   }
 
+  // Save alert settings
+  const saveAlertSettings = async (newMode: 'sniper' | 'balanced' | 'everything', newSleepMode: boolean) => {
+    if (!user?.id) return;
+    
+    setSavingSettings(true);
+    try {
+      const { error: updateError } = await supabase
+        .from('telegram_subscribers')
+        .update({ 
+          alert_mode: newMode,
+          sleep_mode: newSleepMode 
+        })
+        .eq('user_id', user.id);
+      
+      if (!updateError) {
+        setAlertMode(newMode);
+        setSleepMode(newSleepMode);
+      }
+    } catch (err) {
+      console.error('Error saving settings:', err);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   // Already linked
   if (telegramStatus?.linked) {
     return (
@@ -204,9 +262,57 @@ export function TelegramActivation() {
             <p className="text-slate-400 text-sm mt-1">
               Linked to @{telegramStatus.username || 'your account'}
             </p>
-            <p className="text-slate-500 text-xs mt-2">
-              You'll receive instant value bet alerts on Telegram.
-            </p>
+            
+            {/* Alert Mode Selection */}
+            <div className="mt-6">
+              <p className="text-sm font-medium text-white mb-3">Alert Style</p>
+              <div className="grid grid-cols-3 gap-2">
+                {(Object.keys(ALERT_MODES) as Array<keyof typeof ALERT_MODES>).map((mode) => {
+                  const config = ALERT_MODES[mode];
+                  const isSelected = alertMode === mode;
+                  return (
+                    <button
+                      key={mode}
+                      onClick={() => saveAlertSettings(mode, sleepMode)}
+                      disabled={savingSettings}
+                      className={`p-3 rounded-lg border transition-all text-center ${
+                        isSelected 
+                          ? 'border-[#0088cc] bg-[#0088cc]/20' 
+                          : 'border-white/10 hover:border-white/30 bg-brand-dark/50'
+                      } ${savingSettings ? 'opacity-50' : ''}`}
+                    >
+                      <div className="text-2xl mb-1">{config.icon}</div>
+                      <div className={`text-sm font-medium ${isSelected ? 'text-white' : 'text-slate-300'}`}>
+                        {config.name}
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1">{config.alerts}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-slate-500 mt-2">
+                {ALERT_MODES[alertMode].details}
+              </p>
+            </div>
+            
+            {/* Sleep Mode Toggle */}
+            <div className="mt-4 flex items-center justify-between p-3 bg-brand-dark/50 rounded-lg border border-white/10">
+              <div>
+                <p className="text-sm font-medium text-white">Sleep Mode</p>
+                <p className="text-xs text-slate-500">No alerts 11pm - 7am UTC</p>
+              </div>
+              <button
+                onClick={() => saveAlertSettings(alertMode, !sleepMode)}
+                disabled={savingSettings}
+                className={`w-12 h-6 rounded-full transition-colors relative ${
+                  sleepMode ? 'bg-[#0088cc]' : 'bg-slate-600'
+                } ${savingSettings ? 'opacity-50' : ''}`}
+              >
+                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${
+                  sleepMode ? 'translate-x-7' : 'translate-x-1'
+                }`} />
+              </button>
+            </div>
           </div>
         </div>
       </div>
