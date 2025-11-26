@@ -1,6 +1,7 @@
 import { stripeProducts } from '../stripe-config';
 import { SubscriptionCard } from '../components/subscription/SubscriptionCard';
 import { SubscriptionStatus } from '../components/subscription/SubscriptionStatus';
+import { TelegramActivation } from '../components/subscription/TelegramActivation';
 import { useAuth } from '../hooks/useAuth';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
@@ -64,6 +65,11 @@ export function Subscription() {
           <div className="bg-brand-dark/50 p-4 rounded-lg border border-white/5">
             <SubscriptionStatus />
           </div>
+        </div>
+
+        {/* Telegram Activation */}
+        <div className="mb-12">
+          <TelegramActivation />
         </div>
 
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
