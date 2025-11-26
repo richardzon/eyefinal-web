@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
@@ -17,8 +17,15 @@ import {
 export function Account() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { subscription, hasActiveSubscription, loading } = useSubscription();
+  const { subscription, hasActiveSubscription } = useSubscription();
   const [loggingOut, setLoggingOut] = useState(false);
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!user) {
+      navigate('/login');
+    }
+  }, [user, navigate]);
 
   const handleSignOut = async () => {
     setLoggingOut(true);
@@ -35,9 +42,8 @@ export function Account() {
     });
   };
 
-  // Redirect if not authenticated
+  // Show nothing while redirecting
   if (!user) {
-    navigate('/login');
     return null;
   }
 

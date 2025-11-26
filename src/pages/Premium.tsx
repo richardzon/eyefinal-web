@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
@@ -46,10 +46,11 @@ export function Premium() {
   const [error, setError] = useState<string | null>(null);
 
   // If already subscribed, redirect to account
-  if (!subLoading && hasActiveSubscription) {
-    navigate('/account');
-    return null;
-  }
+  useEffect(() => {
+    if (!subLoading && hasActiveSubscription) {
+      navigate('/account');
+    }
+  }, [subLoading, hasActiveSubscription, navigate]);
 
   const handleSubscribe = async () => {
     if (!isAuthenticated) {
