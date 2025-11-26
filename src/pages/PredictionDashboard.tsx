@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/ui/Button';
-import { AlertCircle, TrendingUp, Calendar, Lock, Crown, Activity, Trophy, LayoutGrid, Clock, Filter, ChevronDown, ChevronRight, ChevronUp, DollarSign, Zap, Timer } from 'lucide-react';
+import { AlertCircle, TrendingUp, Calendar, Lock, Crown, Activity, Trophy, LayoutGrid, Clock, Filter, ChevronDown, ChevronRight, ChevronUp, DollarSign, Zap, Timer, User, Bell } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
 import { useSubscription } from '../hooks/useSubscription';
@@ -55,7 +55,7 @@ interface ValueBet {
 type ViewMode = 'tournament' | 'confidence' | 'time';
 
 export function PredictionDashboard() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { isSubscribed, loading: subLoading } = useSubscription();
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split('T')[0]
@@ -439,17 +439,25 @@ export function PredictionDashboard() {
                 </h1>
                 <div className="hidden md:flex ml-10 space-x-1">
                     <Link to="/dashboard" className="text-white hover:bg-white/10 px-3 py-2 rounded-md text-sm font-medium transition-colors">Dashboard</Link>
-                    <Link to="/subscription" className="text-slate-400 hover:text-tennis px-3 py-2 rounded-md text-sm font-medium flex items-center transition-colors">
-                        <Crown className="w-4 h-4 mr-1.5 text-tennis" />
-                        Premium
-                    </Link>
+                    {!isSubscribed && (
+                      <Link to="/premium" className="text-slate-400 hover:text-tennis px-3 py-2 rounded-md text-sm font-medium flex items-center transition-colors">
+                          <Crown className="w-4 h-4 mr-1.5 text-tennis" />
+                          Premium
+                      </Link>
+                    )}
                 </div>
             </div>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-slate-400 hidden sm:inline font-mono">{user?.email}</span>
-              <Button variant="dark-outline" onClick={signOut} size="sm">
-                Sign Out
-              </Button>
+            <div className="flex items-center gap-3">
+              {isSubscribed && (
+                <Link to="/account" className="flex items-center gap-1.5 text-slate-400 hover:text-tennis px-2 py-1.5 rounded-md text-sm font-medium transition-colors" title="Alert Settings">
+                  <Bell className="w-4 h-4" />
+                  <span className="hidden lg:inline">Alerts</span>
+                </Link>
+              )}
+              <Link to="/account" className="flex items-center gap-1.5 text-slate-400 hover:text-white px-2 py-1.5 rounded-md text-sm font-medium transition-colors" title="Account">
+                <User className="w-4 h-4" />
+                <span className="hidden lg:inline">Account</span>
+              </Link>
             </div>
           </div>
         </div>
