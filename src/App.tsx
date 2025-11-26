@@ -5,6 +5,7 @@ import { PredictionDashboard } from './pages/PredictionDashboard';
 import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
 import { Subscription } from './pages/Subscription';
+import { Premium } from './pages/Premium';
 import { Success } from './pages/Success';
 
 function App() {
@@ -42,6 +43,7 @@ function App() {
           element={!user ? <Signup /> : <Navigate to="/" />}
         />
         <Route path="/subscription" element={<Subscription />} />
+        <Route path="/premium" element={<Premium />} />
         <Route path="/success" element={<Success />} />
       </Routes>
     </Router>
