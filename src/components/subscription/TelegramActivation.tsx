@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useSubscription } from '../../hooks/useSubscription';
-import { supabase } from '../../supabaseClient';
+import { supabase } from '../../lib/supabase';
 import { MessageCircle, Copy, Check, ExternalLink, RefreshCw } from 'lucide-react';
 import { Button } from '../ui/Button';
 
