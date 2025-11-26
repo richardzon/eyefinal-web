@@ -1,13 +1,11 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
 import { createCheckoutSession, redirectToCheckout } from '../services/stripe';
-import { TelegramActivation } from '../components/subscription/TelegramActivation';
 import { Button } from '../components/ui/Button';
 import { 
   ArrowLeft, 
-  Crown, 
   Zap, 
   Target, 
   TrendingUp, 
@@ -17,72 +15,45 @@ import {
   Check,
   Sparkles,
   Brain,
-  MessageCircle
+  MessageCircle,
+  ArrowRight,
+  Star
 } from 'lucide-react';
 
 const FEATURES = [
-  {
-    icon: Brain,
-    title: 'V4 AI Model',
-    description: 'State-of-the-art neural network trained on 500K+ matches',
-    highlight: true
-  },
-  {
-    icon: Target,
-    title: 'Value Bet Detection',
-    description: 'Automatic edge calculation vs bookmaker odds'
-  },
-  {
-    icon: TrendingUp,
-    title: 'Kelly Criterion',
-    description: 'Optimal stake sizing for bankroll growth'
-  },
-  {
-    icon: Bell,
-    title: 'Instant Telegram Alerts',
-    description: 'Real-time notifications when value bets appear'
-  },
-  {
-    icon: BarChart3,
-    title: 'Live Match Tracking',
-    description: 'Real-time scores and in-play analysis'
-  },
-  {
-    icon: Shield,
-    title: 'Retirement Warnings',
-    description: 'Player injury & retirement risk detection'
-  }
+  { icon: Brain, title: 'V4 AI Model', desc: 'Neural network trained on 500K+ matches' },
+  { icon: Target, title: 'Value Detection', desc: 'Find edges bookmakers miss' },
+  { icon: TrendingUp, title: 'Kelly Staking', desc: 'Optimal bankroll management' },
+  { icon: Bell, title: 'Telegram Alerts', desc: 'Instant notifications to your phone' },
+  { icon: BarChart3, title: 'Live Tracking', desc: 'Real-time scores & analysis' },
+  { icon: Shield, title: 'Risk Warnings', desc: 'Retirement & injury detection' },
 ];
 
-const STATS = [
-  { value: '67%', label: 'Win Rate', sublabel: 'Last 30 days' },
-  { value: '+18%', label: 'ROI', sublabel: 'Average monthly' },
-  { value: '500K+', label: 'Matches', sublabel: 'Training data' },
-  { value: '<5min', label: 'Alert Speed', sublabel: 'New odds detected' }
-];
-
-const TESTIMONIALS = [
-  {
-    quote: "Finally a tennis predictor that actually works. The value bet alerts are a game changer.",
-    author: "Pro Bettor",
-    profit: "+€2,340 this month"
-  },
-  {
-    quote: "The Kelly staking saved my bankroll. No more emotional betting.",
-    author: "Sports Trader",
-    profit: "+€890 this month"
-  }
+const INCLUDED = [
+  'Full AI predictions for all matches',
+  'Real-time value bet alerts via Telegram',
+  'Kelly Criterion stake calculator',
+  'Customizable alert filters',
+  'Live match tracking',
+  'Priority support'
 ];
 
 export function Premium() {
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const { hasActiveSubscription, subscription, loading: subLoading } = useSubscription();
+  const { hasActiveSubscription, loading: subLoading } = useSubscription();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // If already subscribed, redirect to account
+  if (!subLoading && hasActiveSubscription) {
+    navigate('/account');
+    return null;
+  }
+
   const handleSubscribe = async () => {
     if (!isAuthenticated) {
-      window.location.href = '/login?redirect=/premium';
+      navigate('/login?redirect=/premium');
       return;
     }
 
@@ -98,264 +69,167 @@ export function Premium() {
       });
       redirectToCheckout(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start checkout');
+      setError(err instanceof Error ? err.message : 'Something went wrong');
       setLoading(false);
     }
   };
 
-  const formatRenewalDate = () => {
-    if (!subscription?.current_period_end) return null;
-    return new Date(subscription.current_period_end * 1000).toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-
   return (
     <div className="min-h-screen bg-brand-dark">
-      {/* Hero Section */}
+      {/* Nav */}
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        <Link to="/" className="inline-flex items-center text-slate-400 hover:text-white transition-colors">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back
+        </Link>
+      </div>
+
+      {/* Hero */}
       <div className="relative overflow-hidden">
-        {/* Background Effects */}
-        <div className="absolute inset-0 bg-gradient-to-br from-tennis/20 via-transparent to-purple-500/10" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-tennis/5 rounded-full blur-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-b from-tennis/10 via-transparent to-transparent" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-tennis/5 rounded-full blur-3xl" />
         
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-20">
-          {/* Nav */}
-          <div className="flex items-center justify-between mb-16">
-            <Link to="/" className="flex items-center text-slate-400 hover:text-tennis transition-colors">
-              <ArrowLeft className="w-5 h-5 mr-2" />
-              Back to Dashboard
-            </Link>
+        <div className="relative max-w-4xl mx-auto px-4 pt-8 pb-16 text-center">
+          <div className="inline-flex items-center gap-2 bg-tennis/10 border border-tennis/30 rounded-full px-4 py-1.5 mb-6">
+            <Sparkles className="w-4 h-4 text-tennis" />
+            <span className="text-tennis text-sm font-medium">V4 Model Now Live</span>
           </div>
+          
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
+            Win More with AI Tennis Predictions
+          </h1>
+          
+          <p className="text-lg text-slate-400 mb-8 max-w-2xl mx-auto">
+            Our neural network finds value bets in real-time and sends them straight to your Telegram.
+          </p>
 
-          {/* Hero Content */}
-          <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 bg-tennis/10 border border-tennis/30 rounded-full px-4 py-2 mb-6">
-              <Sparkles className="w-4 h-4 text-tennis" />
-              <span className="text-tennis text-sm font-medium">V4 Model Now Live</span>
+          {/* Price Card */}
+          <div className="bg-white/5 backdrop-blur border border-white/10 rounded-2xl p-8 max-w-sm mx-auto mb-8">
+            <div className="text-5xl font-bold text-white mb-1">
+              €150<span className="text-lg text-slate-400 font-normal">/mo</span>
             </div>
+            <p className="text-slate-400 text-sm mb-6">Cancel anytime</p>
             
-            <h1 className="text-5xl md:text-6xl font-bold text-white mb-6 tracking-tight">
-              Beat the Bookies with
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-tennis to-emerald-400">
-                AI-Powered Tennis Predictions
-              </span>
-            </h1>
+            <Button
+              onClick={handleSubscribe}
+              loading={loading}
+              size="lg"
+              className="w-full bg-tennis hover:bg-tennis/90 text-black font-bold py-4 text-lg rounded-xl mb-4"
+            >
+              <Zap className="w-5 h-5 mr-2" />
+              {isAuthenticated ? 'Start Premium' : 'Sign Up & Subscribe'}
+            </Button>
             
-            <p className="text-xl text-slate-400 mb-10 max-w-2xl mx-auto">
-              Our neural network analyzes every match in real-time, finding value bets 
-              the bookmakers miss. Get instant alerts straight to Telegram.
+            {error && <p className="text-red-400 text-sm">{error}</p>}
+            
+            <p className="text-slate-500 text-xs">
+              Secure payment via Stripe
             </p>
-
-            {/* CTA Section */}
-            {!subLoading && (
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-                {hasActiveSubscription ? (
-                  <div className="bg-gradient-to-r from-tennis/20 to-emerald-500/20 border border-tennis/30 rounded-2xl px-8 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-tennis/20 rounded-full flex items-center justify-center">
-                        <Crown className="w-5 h-5 text-tennis" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-white font-semibold">Premium Active</p>
-                        <p className="text-slate-400 text-sm">
-                          {subscription?.cancel_at_period_end ? 'Expires' : 'Renews'} {formatRenewalDate()}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <Button
-                      onClick={handleSubscribe}
-                      loading={loading}
-                      size="lg"
-                      className="bg-gradient-to-r from-tennis to-emerald-500 hover:from-tennis/90 hover:to-emerald-500/90 text-black font-bold px-8 py-4 text-lg rounded-xl shadow-lg shadow-tennis/25"
-                    >
-                      <Zap className="w-5 h-5 mr-2" />
-                      Start Premium - €150/month
-                    </Button>
-                    <p className="text-slate-500 text-sm">Cancel anytime • Instant access</p>
-                  </>
-                )}
-              </div>
-            )}
-
-            {error && (
-              <div className="text-red-400 text-sm mb-4">{error}</div>
-            )}
           </div>
 
-          {/* Stats Row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-            {STATS.map((stat, i) => (
-              <div key={i} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4 text-center">
-                <div className="text-3xl font-bold text-white mb-1">{stat.value}</div>
-                <div className="text-slate-300 text-sm font-medium">{stat.label}</div>
-                <div className="text-slate-500 text-xs">{stat.sublabel}</div>
-              </div>
-            ))}
+          {/* Trust */}
+          <div className="flex items-center justify-center gap-6 text-sm text-slate-400">
+            <span className="flex items-center gap-1">
+              <Star className="w-4 h-4 text-yellow-500" /> 67% Win Rate
+            </span>
+            <span className="flex items-center gap-1">
+              <TrendingUp className="w-4 h-4 text-green-500" /> +18% ROI
+            </span>
+            <span className="flex items-center gap-1">
+              <MessageCircle className="w-4 h-4 text-[#0088cc]" /> Instant Alerts
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Features Section */}
-      <div className="py-20 bg-gradient-to-b from-transparent to-black/20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-white mb-4">Everything You Need to Win</h2>
-            <p className="text-slate-400 max-w-2xl mx-auto">
-              Professional-grade tools that give you the same edge as sharp bettors
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {FEATURES.map((feature, i) => (
-              <div 
-                key={i} 
-                className={`group relative bg-white/5 backdrop-blur-sm border rounded-xl p-6 transition-all hover:bg-white/10 ${
-                  feature.highlight 
-                    ? 'border-tennis/50 shadow-lg shadow-tennis/10' 
-                    : 'border-white/10 hover:border-white/20'
-                }`}
-              >
-                {feature.highlight && (
-                  <div className="absolute -top-3 left-4 bg-tennis text-black text-xs font-bold px-3 py-1 rounded-full">
-                    NEW
-                  </div>
-                )}
-                <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${
-                  feature.highlight ? 'bg-tennis/20' : 'bg-white/10'
-                }`}>
-                  <feature.icon className={`w-6 h-6 ${feature.highlight ? 'text-tennis' : 'text-slate-300'}`} />
-                </div>
-                <h3 className="text-lg font-semibold text-white mb-2">{feature.title}</h3>
-                <p className="text-slate-400 text-sm">{feature.description}</p>
-              </div>
-            ))}
-          </div>
+      {/* Features Grid */}
+      <div className="max-w-5xl mx-auto px-4 py-16">
+        <h2 className="text-2xl font-bold text-white text-center mb-10">Everything You Get</h2>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {FEATURES.map((f, i) => (
+            <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-5 hover:border-white/20 transition-colors">
+              <f.icon className="w-8 h-8 text-tennis mb-3" />
+              <h3 className="text-white font-semibold mb-1">{f.title}</h3>
+              <p className="text-slate-400 text-sm">{f.desc}</p>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* How It Works */}
-      <div className="py-20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-white mb-4">How It Works</h2>
-          </div>
-
+      <div className="bg-white/[0.02] border-y border-white/10 py-16">
+        <div className="max-w-4xl mx-auto px-4">
+          <h2 className="text-2xl font-bold text-white text-center mb-10">How It Works</h2>
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-tennis/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Brain className="w-8 h-8 text-tennis" />
-              </div>
-              <div className="text-tennis font-bold text-sm mb-2">STEP 1</div>
-              <h3 className="text-xl font-semibold text-white mb-2">AI Analyzes</h3>
-              <p className="text-slate-400 text-sm">
-                Our model processes player stats, surface, form, and 50+ features for every match
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-tennis/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Target className="w-8 h-8 text-tennis" />
-              </div>
-              <div className="text-tennis font-bold text-sm mb-2">STEP 2</div>
-              <h3 className="text-xl font-semibold text-white mb-2">Value Detected</h3>
-              <p className="text-slate-400 text-sm">
-                We compare our probabilities to bookmaker odds and find edges of 10%+
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-tennis/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <MessageCircle className="w-8 h-8 text-tennis" />
-              </div>
-              <div className="text-tennis font-bold text-sm mb-2">STEP 3</div>
-              <h3 className="text-xl font-semibold text-white mb-2">Instant Alert</h3>
-              <p className="text-slate-400 text-sm">
-                You get a Telegram notification with the bet, odds, and recommended stake
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Telegram Section (for subscribers) */}
-      {hasActiveSubscription && (
-        <div className="py-12 bg-gradient-to-b from-transparent to-[#0088cc]/10">
-          <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-white mb-2">Configure Your Alerts</h2>
-              <p className="text-slate-400">Customize which value bets you want to receive</p>
-            </div>
-            <TelegramActivation />
-          </div>
-        </div>
-      )}
-
-      {/* Testimonials */}
-      <div className="py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-6">
-            {TESTIMONIALS.map((t, i) => (
-              <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-6">
-                <p className="text-slate-300 mb-4 italic">"{t.quote}"</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500 text-sm">{t.author}</span>
-                  <span className="text-tennis font-semibold text-sm">{t.profit}</span>
+            {[
+              { num: '1', title: 'Subscribe', desc: 'Get instant access to all predictions' },
+              { num: '2', title: 'Connect Telegram', desc: 'Link your account in 30 seconds' },
+              { num: '3', title: 'Get Alerts', desc: 'Receive value bets as they appear' },
+            ].map((step, i) => (
+              <div key={i} className="text-center">
+                <div className="w-12 h-12 bg-tennis/20 rounded-full flex items-center justify-center mx-auto mb-4 text-tennis font-bold text-xl">
+                  {step.num}
                 </div>
+                <h3 className="text-white font-semibold mb-2">{step.title}</h3>
+                <p className="text-slate-400 text-sm">{step.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Final CTA */}
-      {!hasActiveSubscription && (
-        <div className="py-20 bg-gradient-to-t from-tennis/10 to-transparent">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-3xl font-bold text-white mb-4">
-              Ready to Start Winning?
-            </h2>
-            <p className="text-slate-400 mb-8 max-w-xl mx-auto">
-              Join hundreds of profitable bettors using our AI predictions
-            </p>
-            
-            <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 max-w-md mx-auto">
-              <div className="text-tennis font-bold text-sm mb-2">PREMIUM</div>
-              <div className="text-5xl font-bold text-white mb-2">€150<span className="text-xl text-slate-400">/mo</span></div>
-              
-              <ul className="text-left space-y-3 my-6">
-                {['Full AI predictions access', 'Real-time Telegram alerts', 'Kelly stake calculator', 'Value bet detection', 'Priority support'].map((item, i) => (
-                  <li key={i} className="flex items-center text-slate-300">
-                    <Check className="w-5 h-5 text-tennis mr-3 flex-shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-
-              <Button
-                onClick={handleSubscribe}
-                loading={loading}
-                size="lg"
-                className="w-full bg-gradient-to-r from-tennis to-emerald-500 hover:from-tennis/90 hover:to-emerald-500/90 text-black font-bold py-4 text-lg rounded-xl"
-              >
-                Get Started Now
-              </Button>
-              
-              <p className="text-slate-500 text-xs mt-4">
-                Secure payment via Stripe • Cancel anytime
-              </p>
+      {/* What's Included */}
+      <div className="max-w-4xl mx-auto px-4 py-16">
+        <div className="bg-gradient-to-br from-tennis/10 to-transparent border border-tennis/20 rounded-2xl p-8">
+          <h2 className="text-xl font-bold text-white mb-6">What's Included</h2>
+          <div className="grid md:grid-cols-2 gap-3">
+            {INCLUDED.map((item, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Check className="w-5 h-5 text-tennis flex-shrink-0" />
+                <span className="text-slate-300">{item}</span>
+              </div>
+            ))}
+          </div>
+          
+          <div className="mt-8 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <span className="text-3xl font-bold text-white">€150</span>
+              <span className="text-slate-400">/month</span>
             </div>
+            <Button
+              onClick={handleSubscribe}
+              loading={loading}
+              size="lg"
+              className="bg-tennis hover:bg-tennis/90 text-black font-bold px-8 rounded-xl"
+            >
+              Get Started <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* FAQ */}
+      <div className="max-w-3xl mx-auto px-4 pb-16">
+        <h2 className="text-2xl font-bold text-white text-center mb-8">Questions?</h2>
+        <div className="space-y-4">
+          {[
+            { q: 'How do I receive alerts?', a: 'After subscribing, you\'ll connect your Telegram account. Alerts are sent instantly when value bets are detected.' },
+            { q: 'Can I customize which alerts I get?', a: 'Yes! You can filter by minimum EV, confidence level, tournaments, and preferred bookmakers.' },
+            { q: 'What\'s the cancellation policy?', a: 'Cancel anytime from your account. You\'ll keep access until the end of your billing period.' },
+          ].map((faq, i) => (
+            <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-5">
+              <h3 className="text-white font-medium mb-2">{faq.q}</h3>
+              <p className="text-slate-400 text-sm">{faq.a}</p>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Footer */}
-      <div className="py-8 border-t border-white/10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-slate-500 text-sm">
-          <p>© 2025 Ace Predictor. Gamble responsibly.</p>
-        </div>
+      <div className="border-t border-white/10 py-6">
+        <p className="text-center text-slate-500 text-sm">
+          © 2025 Ace Predictor • Gamble responsibly
+        </p>
       </div>
     </div>
   );
