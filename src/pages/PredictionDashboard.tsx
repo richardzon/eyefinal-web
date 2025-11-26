@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/ui/Button';
-import { AlertCircle, TrendingUp, Calendar, Lock, Crown, Activity, Trophy, LayoutGrid, Clock, Filter, ChevronDown, ChevronRight, ChevronUp, DollarSign, Zap, Timer, User, Bell } from 'lucide-react';
+import { AlertCircle, TrendingUp, Calendar, Crown, Activity, Trophy, LayoutGrid, Clock, Filter, ChevronDown, ChevronRight, ChevronUp, DollarSign, Zap, Timer, User } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
 import { useSubscription } from '../hooks/useSubscription';
@@ -448,13 +448,7 @@ export function PredictionDashboard() {
                 </div>
             </div>
             <div className="flex items-center gap-3">
-              {isSubscribed && (
-                <Link to="/account" className="flex items-center gap-1.5 text-slate-400 hover:text-tennis px-2 py-1.5 rounded-md text-sm font-medium transition-colors" title="Alert Settings">
-                  <Bell className="w-4 h-4" />
-                  <span className="hidden lg:inline">Alerts</span>
-                </Link>
-              )}
-              <Link to="/account" className="flex items-center gap-1.5 text-slate-400 hover:text-white px-2 py-1.5 rounded-md text-sm font-medium transition-colors" title="Account">
+              <Link to="/account" className="flex items-center gap-1.5 text-slate-400 hover:text-white px-2 py-1.5 rounded-md text-sm font-medium transition-colors" title="Account Settings">
                 <User className="w-4 h-4" />
                 <span className="hidden lg:inline">Account</span>
               </Link>

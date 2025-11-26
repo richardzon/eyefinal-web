@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useSubscription } from '../hooks/useSubscription';
@@ -20,12 +20,7 @@ export function Account() {
   const { subscription, hasActiveSubscription } = useSubscription();
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!user) {
-      navigate('/login');
-    }
-  }, [user, navigate]);
+  // Auth check is handled by App.tsx route - no need to redirect here
 
   const handleSignOut = async () => {
     setLoggingOut(true);
@@ -42,7 +37,7 @@ export function Account() {
     });
   };
 
-  // Show nothing while redirecting
+  // User is guaranteed by App.tsx route guard
   if (!user) {
     return null;
   }
