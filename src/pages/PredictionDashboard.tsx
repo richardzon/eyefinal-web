@@ -83,7 +83,7 @@ export function PredictionDashboard() {
   
   // Bookmaker selection (V6 feature)
   const [selectedBookmaker, setSelectedBookmaker] = useState<string>(() => {
-    return localStorage.getItem('eye_bookmaker') || '1xbet';
+    return localStorage.getItem('eye_bookmaker') || 'all';
   });
   const [availableBookmakers, setAvailableBookmakers] = useState<string[]>([]);
 
@@ -237,7 +237,8 @@ export function PredictionDashboard() {
   let filteredBets = valueBets?.filter(bet => {
     // Filter by EV threshold
     if (bet.EV < evThreshold) return false;
-    // Filter by selected bookmaker (case-insensitive match)
+    // Filter by selected bookmaker (case-insensitive match) - "all" shows everything
+    if (selectedBookmaker.toLowerCase() === 'all') return true;
     const betBookie = bet.Bookmaker.toLowerCase().replace(/\s+/g, '');
     const selectedBookie = selectedBookmaker.toLowerCase().replace(/\s+/g, '');
     return betBookie === selectedBookie || betBookie.includes(selectedBookie) || selectedBookie.includes(betBookie);
@@ -271,8 +272,10 @@ export function PredictionDashboard() {
       
       let filtered = predictions;
       
-      // Filter by selected bookmaker - only show matches with odds from this bookie
-      filtered = filtered.filter(p => p.odds_data && p.odds_data[selectedBookmaker]);
+      // Filter by selected bookmaker - only show matches with odds from this bookie (skip if "all")
+      if (selectedBookmaker.toLowerCase() !== 'all') {
+        filtered = filtered.filter(p => p.odds_data && p.odds_data[selectedBookmaker]);
+      }
       
       if (highConfidenceOnly) {
           filtered = filtered.filter(p => p.Probability > 0.60);
