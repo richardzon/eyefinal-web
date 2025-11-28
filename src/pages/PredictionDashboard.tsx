@@ -237,6 +237,9 @@ export function PredictionDashboard() {
 
   // Filter value bets by selected bookmaker and EV threshold
   let filteredBets = valueBets?.filter(bet => {
+    // CRITICAL: Only show bets where model confidence is >= 55%
+    // Betting on underdogs with "positive EV" but low prob loses money
+    if (bet['Model Prob'] < 55) return false;
     // Filter by EV threshold
     if (bet.EV < evThreshold) return false;
     // Filter by selected bookmaker (case-insensitive match) - "all" shows everything
