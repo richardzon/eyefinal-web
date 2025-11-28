@@ -186,11 +186,13 @@ export function PredictionDashboard() {
 
       setPredictions(formattedPredictions);
       
-      // Extract available bookmakers from all predictions
+      // Extract available bookmakers from Home/Away market (match winner odds)
       const bookieSet = new Set<string>();
       formattedPredictions.forEach(p => {
-        if (p.odds_data) {
-          Object.keys(p.odds_data).forEach(bookie => bookieSet.add(bookie));
+        if (p.odds_data && p.odds_data['Home/Away']) {
+          const homeAway = p.odds_data['Home/Away'] as Record<string, Record<string, string>>;
+          if (homeAway['Home']) Object.keys(homeAway['Home']).forEach(bookie => bookieSet.add(bookie));
+          if (homeAway['Away']) Object.keys(homeAway['Away']).forEach(bookie => bookieSet.add(bookie));
         }
       });
       setAvailableBookmakers(Array.from(bookieSet).sort());
