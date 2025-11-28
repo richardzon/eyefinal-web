@@ -133,7 +133,7 @@ export function PredictionDashboard() {
         .from('predictions')
         .select('*')
         .in('event_key', eventKeys)
-        .eq('model_version', 'v5_sota_singles');
+        .eq('model_version', 'v7.1_travel_aware');
 
       if (predError) throw predError;
 
