@@ -520,13 +520,10 @@ export function PredictionDashboard() {
                         onChange={(e) => setSelectedBookmaker(e.target.value)}
                         className="bg-brand-dark border border-white/10 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-tennis focus:border-transparent outline-none text-sm"
                     >
-                        {availableBookmakers.length > 0 ? (
-                            availableBookmakers.map(bookie => (
-                                <option key={bookie} value={bookie}>{bookie}</option>
-                            ))
-                        ) : (
-                            <option value="1xbet">1xbet</option>
-                        )}
+                        <option value="all">All Bookmakers</option>
+                        {availableBookmakers.map(bookie => (
+                            <option key={bookie} value={bookie}>{bookie}</option>
+                        ))}
                     </select>
                 </div>
 
